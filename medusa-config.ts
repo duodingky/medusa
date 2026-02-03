@@ -1,4 +1,5 @@
 import { loadEnv, defineConfig } from '@medusajs/framework/utils'
+import { resolve } from 'path/win32'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
@@ -30,6 +31,7 @@ export default defineConfig({
   ],
   modules: [ 
     { resolve: "./modules/restaurant" },
-    { resolve: "./modules/delivery" } 
+    { resolve: "./modules/delivery" },
+    { resolve: "./modules/service_fees" },
   ]
 })
