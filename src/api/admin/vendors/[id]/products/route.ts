@@ -1,50 +1,12 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import {
-  ContainerRegistrationKeys,
-  Modules,
-  composeLinkName,
-} from "@medusajs/framework/utils";
+import { Modules } from "@medusajs/framework/utils";
 import { VENDOR_MODULE } from "../../../../../modules/vendor";
 import VendorModuleService from "../../../../../modules/vendor/service";
 import { addVendorProductSchema } from "../../validation-schemas";
-
-type VendorProductLinkService = {
-  list: (
-    filters: Record<string, unknown>,
-    config?: { take?: number }
-  ) => Promise<Array<{ vendor_id?: string; product_id?: string }>>;
-  create: (vendorId: string, productId: string) => Promise<unknown>;
-};
-
-type RemoteLinkService = {
-  list: (
-    linkDef: Record<string, unknown> | Record<string, unknown>[],
-    options?: { asLinkDefinition?: boolean }
-  ) => Promise<Array<{ vendor_id?: string; product_id?: string }>>;
-  create: (linkDef: Record<string, unknown> | Record<string, unknown>[]) => Promise<unknown>;
-};
-
-const getVendorProductLinkAccess = (req: MedusaRequest) => {
-  const serviceKey = composeLinkName(
-    VENDOR_MODULE,
-    "vendor_id",
-    Modules.PRODUCT,
-    "product_id"
-  );
-  try {
-    return {
-      mode: "module" as const,
-      service: req.scope.resolve(serviceKey) as VendorProductLinkService,
-    };
-  } catch (error) {
-    return {
-      mode: "remote" as const,
-      service: req.scope.resolve(
-        ContainerRegistrationKeys.LINK
-      ) as RemoteLinkService,
-    };
-  }
-};
+import {
+  buildVendorProductLinkDefinition,
+  getVendorProductLinkAccess,
+} from "../../vendor-product-link";
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const vendorModuleService: VendorModuleService = req.scope.resolve(
@@ -58,10 +20,12 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       ? await linkAccess.service.list({
           vendor_id: req.params.id,
         })
-      : await linkAccess.service.list({
-          [VENDOR_MODULE]: { vendor_id: req.params.id },
-          [Modules.PRODUCT]: { product_id: { $ne: null } },
-        });
+      : await linkAccess.service.list(
+          buildVendorProductLinkDefinition(
+            { vendor_id: req.params.id },
+            { product_id: { $ne: null } }
+          )
+        );
   const productIds = Array.from(
     new Set(
       links
@@ -93,10 +57,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           },
           { take: 1 }
         )
-      : await linkAccess.service.list({
-          [VENDOR_MODULE]: { vendor_id: req.params.id },
-          [Modules.PRODUCT]: { product_id: validatedBody.product_id },
-        });
+      : await linkAccess.service.list(
+          buildVendorProductLinkDefinition(
+            { vendor_id: req.params.id },
+            { product_id: validatedBody.product_id }
+          )
+        );
 
   if (existingForVendor.length > 0) {
     return res.status(200).json({
@@ -115,10 +81,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           },
           { take: 1 }
         )
-      : await linkAccess.service.list({
-          [VENDOR_MODULE]: { vendor_id: { $ne: null } },
-          [Modules.PRODUCT]: { product_id: validatedBody.product_id },
-        });
+      : await linkAccess.service.list(
+          buildVendorProductLinkDefinition(
+            { vendor_id: { $ne: null } },
+            { product_id: validatedBody.product_id }
+          )
+        );
   const linkedVendors = existingForProduct
     .map((link) => link.vendor_id)
     .filter(
@@ -133,8 +101,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     } else {
       await linkAccess.service.dismiss(
         Array.from(new Set(linkedVendors)).map((vendorId) => ({
-          [VENDOR_MODULE]: { vendor_id: vendorId },
-          [Modules.PRODUCT]: { product_id: validatedBody.product_id },
+          ...buildVendorProductLinkDefinition(
+            { vendor_id: vendorId },
+            { product_id: validatedBody.product_id }
+          ),
         }))
       );
     }
@@ -143,10 +113,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (linkAccess.mode === "module") {
     await linkAccess.service.create(req.params.id, validatedBody.product_id);
   } else {
-    await linkAccess.service.create({
-      [VENDOR_MODULE]: { vendor_id: req.params.id },
-      [Modules.PRODUCT]: { product_id: validatedBody.product_id },
-    });
+    await linkAccess.service.create(
+      buildVendorProductLinkDefinition(
+        { vendor_id: req.params.id },
+        { product_id: validatedBody.product_id }
+      )
+    );
   }
 
   return res.status(200).json({

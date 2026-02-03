@@ -33,11 +33,15 @@ const VendorProductsPage = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [linkedProductIds, setLinkedProductIds] = useState<string[]>([]);
+  const [productVendorMap, setProductVendorMap] = useState<
+    Record<string, string>
+  >({});
   const [selectedVendorId, setSelectedVendorId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isLoadingVendorProducts, setIsLoadingVendorProducts] = useState(false);
+  const [isLoadingProductLinks, setIsLoadingProductLinks] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,12 +59,20 @@ const VendorProductsPage = () => {
   }, [linkedProductIds, products]);
 
   const availableProducts = useMemo(() => {
-    if (linkedProductIds.length === 0) {
-      return products;
-    }
     const linkedSet = new Set(linkedProductIds);
-    return products.filter((product) => !linkedSet.has(product.id));
-  }, [linkedProductIds, products]);
+    return products.filter((product) => {
+      if (linkedSet.has(product.id)) {
+        return false;
+      }
+
+      const linkedVendorId = productVendorMap[product.id];
+      if (linkedVendorId && linkedVendorId !== selectedVendorId) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [linkedProductIds, products, productVendorMap, selectedVendorId]);
 
   const loadVendors = async () => {
     setIsLoadingVendors(true);
@@ -147,9 +159,48 @@ const VendorProductsPage = () => {
     }
   };
 
+  const loadProductVendorMap = async () => {
+    setIsLoadingProductLinks(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/admin/vendor-products", {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const message = await getErrorMessage(
+          response,
+          "Failed to load vendor product links"
+        );
+        throw new Error(message);
+      }
+
+      const data = await response.json();
+      const map: Record<string, string> = {};
+      (data.vendor_products ?? []).forEach(
+        (entry: { product_id?: string; vendor_id?: string }) => {
+          if (entry.product_id && entry.vendor_id) {
+            map[entry.product_id] = entry.vendor_id;
+          }
+        }
+      );
+      setProductVendorMap(map);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load vendor product links"
+      );
+    } finally {
+      setIsLoadingProductLinks(false);
+    }
+  };
+
   useEffect(() => {
     loadVendors();
     loadProducts();
+    loadProductVendorMap();
   }, []);
 
   useEffect(() => {
@@ -202,6 +253,7 @@ const VendorProductsPage = () => {
       }
 
       await loadVendorProducts(selectedVendorId);
+      await loadProductVendorMap();
       setSelectedProductId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to link product");
@@ -240,6 +292,7 @@ const VendorProductsPage = () => {
       }
 
       await loadVendorProducts(selectedVendorId);
+      await loadProductVendorMap();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to unlink product");
     } finally {
@@ -303,7 +356,8 @@ const VendorProductsPage = () => {
                   disabled={
                     availableProducts.length === 0 ||
                     isSaving ||
-                    isLoadingProducts
+                    isLoadingProducts ||
+                    isLoadingProductLinks
                   }
                 >
                   <option value="">Select product</option>
@@ -314,6 +368,9 @@ const VendorProductsPage = () => {
                   ))}
                 </select>
               </label>
+              <p className="text-ui-fg-subtle">
+                Products linked to another vendor are hidden.
+              </p>
               <button
                 className="rounded-md bg-ui-bg-interactive px-4 py-2 text-ui-fg-on-color"
                 type="button"
@@ -323,7 +380,9 @@ const VendorProductsPage = () => {
                 Link product
               </button>
             </div>
-            {isLoadingVendorProducts || isLoadingProducts ? (
+            {isLoadingVendorProducts ||
+            isLoadingProducts ||
+            isLoadingProductLinks ? (
               <p className="text-ui-fg-subtle">Loading vendor products...</p>
             ) : linkedProducts.length === 0 ? (
               <p className="text-ui-fg-subtle">
