@@ -1,8 +1,8 @@
 import Service from "./service";
 import { Module } from "@medusajs/framework/utils";
 
-export const MARKETPLACE_MODULE = "marketplace";
+export const VENDOR_MODULE = "vendor";
 
-export default Module(MARKETPLACE_MODULE, {
+export default Module(VENDOR_MODULE, {
   service: Service,
 });

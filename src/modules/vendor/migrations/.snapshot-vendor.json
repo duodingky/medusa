@@ -15,15 +15,6 @@
           "nullable": false,
           "mappedType": "text"
         },
-        "handle": {
-          "name": "handle",
-          "type": "text",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "text"
-        },
         "name": {
           "name": "name",
           "type": "text",
@@ -31,15 +22,6 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "mappedType": "text"
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": true,
           "mappedType": "text"
         },
         "phone": {
@@ -112,7 +94,18 @@
             "id"
           ],
           "composite": false,
+          "constraint": true,
           "primary": true,
+          "unique": true
+        },
+        {
+          "keyName": "vendor_name_unique",
+          "columnNames": [
+            "name"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": false,
           "unique": true
         }
       ],

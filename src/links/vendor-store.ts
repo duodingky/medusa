@@ -1,8 +1,8 @@
-import MarketplaceModule from "../modules/marketplace";
+import VendorModule from "../modules/vendor";
 import StoreModule from "@medusajs/store";
 import { defineLink } from "@medusajs/framework/utils";
 
 export default defineLink(
-  MarketplaceModule.linkable.vendor,
+  VendorModule.linkable.vendor,
   StoreModule.linkable.store
 );

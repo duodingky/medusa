@@ -1,14 +1,14 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { MARKETPLACE_MODULE } from "../../../../modules/marketplace";
-import MarketplaceModuleService from "../../../../modules/marketplace/service";
+import { VENDOR_MODULE } from "../../../../modules/vendor";
+import VendorModuleService from "../../../../modules/vendor/service";
 import { updateVendorSchema } from "../validation-schemas";
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const marketplaceModuleService: MarketplaceModuleService = req.scope.resolve(
-    MARKETPLACE_MODULE
+  const vendorModuleService: VendorModuleService = req.scope.resolve(
+    VENDOR_MODULE
   );
 
-  const vendor = await marketplaceModuleService.retrieveVendor(req.params.id);
+  const vendor = await vendorModuleService.retrieveVendor(req.params.id);
 
   return res.status(200).json({ vendor });
 }
@@ -16,11 +16,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   const validatedBody = updateVendorSchema.parse(req.body);
 
-  const marketplaceModuleService: MarketplaceModuleService = req.scope.resolve(
-    MARKETPLACE_MODULE
+  const vendorModuleService: VendorModuleService = req.scope.resolve(
+    VENDOR_MODULE
   );
 
-  const vendor = await marketplaceModuleService.updateVendors(
+  const vendor = await vendorModuleService.updateVendors(
     req.params.id,
     validatedBody
   );
@@ -29,11 +29,11 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
-  const marketplaceModuleService: MarketplaceModuleService = req.scope.resolve(
-    MARKETPLACE_MODULE
+  const vendorModuleService: VendorModuleService = req.scope.resolve(
+    VENDOR_MODULE
   );
 
-  await marketplaceModuleService.deleteVendors(req.params.id);
+  await vendorModuleService.deleteVendors(req.params.id);
 
   return res.status(200).json({ id: req.params.id, deleted: true });
 }

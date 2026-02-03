@@ -6,8 +6,6 @@ import { FormEvent, useEffect, useState } from "react";
 type Vendor = {
   id: string;
   name: string;
-  handle: string;
-  email?: string | null;
   phone?: string | null;
   description?: string | null;
   is_active?: boolean;
@@ -15,8 +13,6 @@ type Vendor = {
 
 type VendorFormState = {
   name: string;
-  handle: string;
-  email: string;
   phone: string;
   description: string;
   is_active: boolean;
@@ -24,8 +20,6 @@ type VendorFormState = {
 
 const defaultVendorFormState: VendorFormState = {
   name: "",
-  handle: "",
-  email: "",
   phone: "",
   description: "",
   is_active: true,
@@ -80,7 +74,6 @@ const VendorsPage = () => {
     try {
       const payload = {
         ...formState,
-        email: formState.email.trim() || undefined,
         phone: formState.phone.trim() || undefined,
         description: formState.description.trim() || undefined,
       };
@@ -114,8 +107,6 @@ const VendorsPage = () => {
     setEditingVendorId(vendor.id);
     setFormState({
       name: vendor.name ?? "",
-      handle: vendor.handle ?? "",
-      email: vendor.email ?? "",
       phone: vendor.phone ?? "",
       description: vendor.description ?? "",
       is_active: vendor.is_active ?? true,
@@ -169,34 +160,6 @@ const VendorsPage = () => {
                   setFormState((prev) => ({
                     ...prev,
                     name: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-ui-fg-subtle">Handle</span>
-              <input
-                className="rounded-md border border-ui-border-base px-3 py-2"
-                required
-                value={formState.handle}
-                onChange={(event) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    handle: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-ui-fg-subtle">Email</span>
-              <input
-                className="rounded-md border border-ui-border-base px-3 py-2"
-                type="email"
-                value={formState.email}
-                onChange={(event) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    email: event.target.value,
                   }))
                 }
               />
@@ -274,8 +237,6 @@ const VendorsPage = () => {
               <thead>
                 <tr className="border-b border-ui-border-base text-left text-ui-fg-subtle">
                   <th className="py-2 pr-4">Name</th>
-                  <th className="py-2 pr-4">Handle</th>
-                  <th className="py-2 pr-4">Email</th>
                   <th className="py-2 pr-4">Phone</th>
                   <th className="py-2 pr-4">Status</th>
                   <th className="py-2 pr-4">Actions</th>
@@ -288,8 +249,6 @@ const VendorsPage = () => {
                     className="border-b border-ui-border-base"
                   >
                     <td className="py-3 pr-4">{vendor.name}</td>
-                    <td className="py-3 pr-4">{vendor.handle}</td>
-                    <td className="py-3 pr-4">{vendor.email ?? "-"}</td>
                     <td className="py-3 pr-4">{vendor.phone ?? "-"}</td>
                     <td className="py-3 pr-4">
                       {vendor.is_active ? "Active" : "Inactive"}

@@ -31,6 +31,6 @@ export default defineConfig({
   modules: [
     { resolve: "./modules/restaurant" },
     { resolve: "./modules/delivery" },
-    { resolve: "./modules/marketplace" }
+    { resolve: "./modules/vendor" }
   ]
 })

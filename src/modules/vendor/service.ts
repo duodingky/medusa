@@ -1,8 +1,8 @@
 import { MedusaService } from "@medusajs/framework/utils";
 import { Vendor } from "./models/vendor";
 
-class MarketplaceModuleService extends MedusaService({
+class VendorModuleService extends MedusaService({
   Vendor,
 }) {}
 
-export default MarketplaceModuleService;
+export default VendorModuleService;
