@@ -20,10 +20,10 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     VENDOR_MODULE
   );
 
-  const vendor = await vendorModuleService.updateVendors(
-    req.params.id,
-    validatedBody
-  );
+  const vendor = await vendorModuleService.updateVendors({
+    id: req.params.id,
+    ...validatedBody,
+  });
 
   return res.status(200).json({ vendor });
 }
