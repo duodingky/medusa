@@ -31,7 +31,7 @@ type ServiceFeeFormState = {
 const defaultServiceFeeFormState: ServiceFeeFormState = {
   display_name: "",
   fee_name: "",
-  charging_level: "global",
+  charging_level: "item_level",
   rate: "",
   valid_from: "",
   valid_to: "",
@@ -96,6 +96,8 @@ const ServiceFeesPage = () => {
   const [formState, setFormState] = useState<ServiceFeeFormState>(
     defaultServiceFeeFormState
   );
+  const [lockedChargingLevel, setLockedChargingLevel] =
+    useState<ChargingLevel | null>(null);
 
   const loadServiceFees = async () => {
     setIsLoading(true);
@@ -127,12 +129,27 @@ const ServiceFeesPage = () => {
 
   const openCreateModal = () => {
     setEditingServiceFeeId(null);
+    setLockedChargingLevel(null);
     setFormState(defaultServiceFeeFormState);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (serviceFee: ServiceFee) => {
+  const openGlobalCreateModal = () => {
+    setEditingServiceFeeId(null);
+    setLockedChargingLevel("global");
+    setFormState({
+      ...defaultServiceFeeFormState,
+      charging_level: "global",
+    });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (
+    serviceFee: ServiceFee,
+    lockLevel: ChargingLevel | null = null
+  ) => {
     setEditingServiceFeeId(serviceFee.id);
+    setLockedChargingLevel(lockLevel);
     setFormState({
       display_name: serviceFee.display_name ?? "",
       fee_name: serviceFee.fee_name ?? "",
@@ -151,6 +168,7 @@ const ServiceFeesPage = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingServiceFeeId(null);
+    setLockedChargingLevel(null);
     setFormState(defaultServiceFeeFormState);
   };
 
@@ -163,7 +181,7 @@ const ServiceFeesPage = () => {
       const payload = {
         display_name: formState.display_name.trim(),
         fee_name: formState.fee_name.trim(),
-        charging_level: formState.charging_level,
+        charging_level: lockedChargingLevel ?? formState.charging_level,
         rate: Number(formState.rate),
         valid_from: formState.valid_from || undefined,
         valid_to: formState.valid_to || undefined,
@@ -230,6 +248,18 @@ const ServiceFeesPage = () => {
     }
   };
 
+  const globalServiceFee = serviceFees.find(
+    (serviceFee) => serviceFee.charging_level === "global"
+  );
+  const nonGlobalServiceFees = serviceFees.filter(
+    (serviceFee) => serviceFee.charging_level !== "global"
+  );
+  const chargingLevelOptionsForForm =
+    lockedChargingLevel === "global"
+      ? chargingLevelOptions.filter((option) => option.value === "global")
+      : chargingLevelOptions.filter((option) => option.value !== "global");
+  const isChargingLevelLocked = lockedChargingLevel !== null;
+
   return (
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
@@ -243,11 +273,64 @@ const ServiceFeesPage = () => {
         </button>
       </div>
       <div className="px-6 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <Heading level="h2">Global charging</Heading>
+          <button
+            className="rounded-md border border-ui-border-base px-3 py-1"
+            type="button"
+            onClick={() =>
+              globalServiceFee
+                ? openEditModal(globalServiceFee, "global")
+                : openGlobalCreateModal()
+            }
+            disabled={isSaving}
+          >
+            {globalServiceFee ? "Edit global" : "Add global"}
+          </button>
+        </div>
+        {isLoading ? (
+          <p className="mt-3 text-ui-fg-subtle">Loading global charging...</p>
+        ) : globalServiceFee ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-ui-fg-subtle">Display name</p>
+              <p>{globalServiceFee.display_name}</p>
+            </div>
+            <div>
+              <p className="text-ui-fg-subtle">Fee name</p>
+              <p>{globalServiceFee.fee_name}</p>
+            </div>
+            <div>
+              <p className="text-ui-fg-subtle">Rate (%)</p>
+              <p>{globalServiceFee.rate}</p>
+            </div>
+            <div>
+              <p className="text-ui-fg-subtle">Status</p>
+              <p>{statusLabels[globalServiceFee.status]}</p>
+            </div>
+            <div>
+              <p className="text-ui-fg-subtle">Valid from</p>
+              <p>{formatDateLabel(globalServiceFee.valid_from)}</p>
+            </div>
+            <div>
+              <p className="text-ui-fg-subtle">Valid to</p>
+              <p>{formatDateLabel(globalServiceFee.valid_to)}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 text-ui-fg-subtle">
+            No global charging set yet.
+          </p>
+        )}
+      </div>
+      <div className="px-6 py-4">
         {error && <p className="text-ui-fg-error">{error}</p>}
         {isLoading ? (
           <p className="text-ui-fg-subtle">Loading service fees...</p>
-        ) : serviceFees.length === 0 ? (
-          <p className="text-ui-fg-subtle">No service fees yet.</p>
+        ) : nonGlobalServiceFees.length === 0 ? (
+          <p className="text-ui-fg-subtle">
+            No item or shop level service fees yet.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -264,7 +347,7 @@ const ServiceFeesPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {serviceFees.map((serviceFee) => (
+                {nonGlobalServiceFees.map((serviceFee) => (
                   <tr
                     key={serviceFee.id}
                     className="border-b border-ui-border-base"
@@ -370,6 +453,7 @@ const ServiceFeesPage = () => {
                     className="rounded-md border border-ui-border-base px-3 py-2"
                     required
                     value={formState.charging_level}
+                    disabled={isChargingLevelLocked}
                     onChange={(event) =>
                       setFormState((prev) => ({
                         ...prev,
@@ -377,7 +461,7 @@ const ServiceFeesPage = () => {
                       }))
                     }
                   >
-                    {chargingLevelOptions.map((option) => (
+                    {chargingLevelOptionsForForm.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
