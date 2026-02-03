@@ -5,7 +5,7 @@ import VendorModuleService from "../../../../../../modules/vendor/service";
 import {
   buildVendorProductLinkDefinition,
   getVendorProductLinkAccess,
-} from "../../vendor-product-link";
+} from "../../../vendor-product-link";
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const vendorModuleService: VendorModuleService = req.scope.resolve(
