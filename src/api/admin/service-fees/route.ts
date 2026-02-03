@@ -1,7 +1,10 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { SERVICE_FEE_MODULE } from "../../../modules/service-fee";
 import ServiceFeeModuleService from "../../../modules/service-fee/service";
-import { ServiceFeeStatus } from "../../../modules/service-fee/types";
+import {
+  ChargingLevel,
+  ServiceFeeStatus,
+} from "../../../modules/service-fee/types";
 import { createServiceFeeSchema } from "./validation-schemas";
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -21,9 +24,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     SERVICE_FEE_MODULE
   );
 
+  if (validatedBody.charging_level === ChargingLevel.GLOBAL) {
+    const existingServiceFees =
+      await serviceFeeModuleService.listServiceFees({});
+    const hasGlobalFee = existingServiceFees.some(
+      (serviceFee) => serviceFee.charging_level === ChargingLevel.GLOBAL
+    );
+
+    if (hasGlobalFee) {
+      return res.status(409).json({
+        message: "A global service fee already exists.",
+      });
+    }
+  }
+
+  const now = new Date();
+  const shouldForcePending =
+    validatedBody.valid_from && validatedBody.valid_from > now;
+
   const service_fee = await serviceFeeModuleService.createServiceFees({
     ...validatedBody,
-    status: validatedBody.status ?? ServiceFeeStatus.PENDING,
+    status: shouldForcePending
+      ? ServiceFeeStatus.PENDING
+      : validatedBody.status ?? ServiceFeeStatus.PENDING,
     date_created: new Date(),
   });
 
