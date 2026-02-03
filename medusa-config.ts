@@ -28,8 +28,9 @@ export default defineConfig({
       },
     },
   ],
-  modules: [ 
+  modules: [
     { resolve: "./modules/restaurant" },
-    { resolve: "./modules/delivery" } 
+    { resolve: "./modules/delivery" },
+    { resolve: "./modules/marketplace" }
   ]
 })
