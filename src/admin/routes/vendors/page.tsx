@@ -28,6 +28,19 @@ const defaultVendorFormState: VendorFormState = {
   is_active: true,
 };
 
+const getErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const data = await response.json();
+    if (data && typeof data.message === "string") {
+      return data.message;
+    }
+  } catch (err) {
+    // Ignore JSON parsing errors and fall back to default.
+  }
+
+  return fallback;
+};
+
 const VendorsPage = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +61,8 @@ const VendorsPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to load vendors");
+        const message = await getErrorMessage(response, "Failed to load vendors");
+        throw new Error(message);
       }
 
       const data = await response.json();
@@ -95,7 +109,8 @@ const VendorsPage = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to save vendor");
+        const message = await getErrorMessage(response, "Failed to save vendor");
+        throw new Error(message);
       }
 
       await loadVendors();
@@ -133,7 +148,11 @@ const VendorsPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete vendor");
+        const message = await getErrorMessage(
+          response,
+          "Failed to delete vendor"
+        );
+        throw new Error(message);
       }
 
       await loadVendors();
