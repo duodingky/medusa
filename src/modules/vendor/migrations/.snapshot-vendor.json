@@ -24,6 +24,15 @@
           "nullable": false,
           "mappedType": "text"
         },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "text"
+        },
         "phone": {
           "name": "phone",
           "type": "text",
@@ -102,6 +111,16 @@
           "keyName": "vendor_name_unique",
           "columnNames": [
             "name"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "vendor_email_unique",
+          "columnNames": [
+            "email"
           ],
           "composite": false,
           "constraint": true,
