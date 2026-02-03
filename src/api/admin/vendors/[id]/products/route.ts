@@ -119,14 +119,25 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           [VENDOR_MODULE]: { vendor_id: { $ne: null } },
           [Modules.PRODUCT]: { product_id: validatedBody.product_id },
         });
-  const linkedVendorId = existingForProduct.find(
-    (link) => link.vendor_id && link.vendor_id !== req.params.id
-  )?.vendor_id;
+  const linkedVendors = existingForProduct
+    .map((link) => link.vendor_id)
+    .filter(
+      (vendorId): vendorId is string => !!vendorId && vendorId !== req.params.id
+    );
 
-  if (linkedVendorId) {
-    return res.status(409).json({
-      message: "Product is already linked to another vendor.",
-    });
+  if (linkedVendors.length > 0) {
+    if (linkAccess.mode === "module") {
+      for (const vendorId of new Set(linkedVendors)) {
+        await linkAccess.service.dismiss(vendorId, validatedBody.product_id);
+      }
+    } else {
+      await linkAccess.service.dismiss(
+        Array.from(new Set(linkedVendors)).map((vendorId) => ({
+          [VENDOR_MODULE]: { vendor_id: vendorId },
+          [Modules.PRODUCT]: { product_id: validatedBody.product_id },
+        }))
+      );
+    }
   }
 
   if (linkAccess.mode === "module") {
