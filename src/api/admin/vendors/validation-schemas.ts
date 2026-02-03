@@ -9,3 +9,7 @@ export const createVendorSchema = z.object({
 });
 
 export const updateVendorSchema = createVendorSchema.partial();
+
+export const addVendorProductSchema = z.object({
+  product_id: z.string().min(1),
+});

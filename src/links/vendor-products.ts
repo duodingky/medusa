@@ -7,5 +7,10 @@ export default defineLink(
   {
     linkable: ProductModule.linkable.product.id,
     isList: true,
+  },
+  {
+    database: {
+      table: "vendor_product",
+    },
   }
 );
