@@ -1,86 +1,25 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import { Modules, composeLinkName } from "@medusajs/framework/utils";
 import { VENDOR_MODULE } from "../../../../../modules/vendor";
 import VendorModuleService from "../../../../../modules/vendor/service";
 import { addVendorProductSchema } from "../../validation-schemas";
 
-type LinkRecord = Record<string, any>;
-
-const normalizeLinkList = (result: unknown): LinkRecord[] => {
-  if (Array.isArray(result)) {
-    return result as LinkRecord[];
-  }
-
-  if (result && typeof result === "object" && "data" in result) {
-    const data = (result as { data?: unknown }).data;
-    return Array.isArray(data) ? (data as LinkRecord[]) : [];
-  }
-
-  return [];
+type VendorProductLinkService = {
+  list: (
+    filters: Record<string, unknown>,
+    config?: { take?: number }
+  ) => Promise<Array<{ vendor_id?: string; product_id?: string }>>;
+  create: (vendorId: string, productId: string) => Promise<unknown>;
 };
 
-const extractProductId = (link: LinkRecord): string | null => {
-  if (typeof link.product_id === "string") {
-    return link.product_id;
-  }
-
-  if (typeof link.productId === "string") {
-    return link.productId;
-  }
-
-  if (link?.product?.id) {
-    return link.product.id;
-  }
-
-  if (link?.data?.product_id) {
-    return link.data.product_id;
-  }
-
-  if (link?.data?.product?.id) {
-    return link.data.product.id;
-  }
-
-  const productEntry = link[Modules.PRODUCT];
-  if (productEntry?.product_id) {
-    return productEntry.product_id;
-  }
-  if (productEntry?.id) {
-    return productEntry.id;
-  }
-
-  return null;
-};
-
-const extractVendorId = (link: LinkRecord): string | null => {
-  if (typeof link.vendor_id === "string") {
-    return link.vendor_id;
-  }
-
-  if (typeof link.vendorId === "string") {
-    return link.vendorId;
-  }
-
-  if (link?.vendor?.id) {
-    return link.vendor.id;
-  }
-
-  if (link?.data?.vendor_id) {
-    return link.data.vendor_id;
-  }
-
-  if (link?.data?.vendor?.id) {
-    return link.data.vendor.id;
-  }
-
-  const vendorEntry = link[VENDOR_MODULE];
-  if (vendorEntry?.vendor_id) {
-    return vendorEntry.vendor_id;
-  }
-  if (vendorEntry?.id) {
-    return vendorEntry.id;
-  }
-
-  return null;
+const getVendorProductLinkService = (req: MedusaRequest) => {
+  const serviceKey = composeLinkName(
+    VENDOR_MODULE,
+    "vendor_id",
+    Modules.PRODUCT,
+    "product_id"
+  );
+  return req.scope.resolve(serviceKey) as VendorProductLinkService;
 };
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -89,16 +28,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   );
   await vendorModuleService.retrieveVendor(req.params.id);
 
-  const linkService = req.scope.resolve(ContainerRegistrationKeys.LINK);
-  const listResult = await linkService.list({
-    [VENDOR_MODULE]: { vendor_id: req.params.id },
-    [Modules.PRODUCT]: {},
+  const linkService = getVendorProductLinkService(req);
+  const links = await linkService.list({
+    vendor_id: req.params.id,
   });
-
-  const links = normalizeLinkList(listResult);
   const productIds = Array.from(
-    new Set(links.map(extractProductId).filter(Boolean))
-  ) as string[];
+    new Set(
+      links
+        .map((link) => link.product_id)
+        .filter((productId): productId is string => !!productId)
+    )
+  );
 
   const vendor_products = productIds.map((product_id) => ({ product_id }));
 
@@ -113,15 +53,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   );
   await vendorModuleService.retrieveVendor(req.params.id);
 
-  const linkService = req.scope.resolve(ContainerRegistrationKeys.LINK);
+  const linkService = getVendorProductLinkService(req);
+  const existingForVendor = await linkService.list(
+    {
+      vendor_id: req.params.id,
+      product_id: validatedBody.product_id,
+    },
+    { take: 1 }
+  );
 
-  const existingForVendor = await linkService.list({
-    [VENDOR_MODULE]: { vendor_id: req.params.id },
-    [Modules.PRODUCT]: { product_id: validatedBody.product_id },
-  });
-
-  const vendorLinks = normalizeLinkList(existingForVendor);
-  if (vendorLinks.length > 0) {
+  if (existingForVendor.length > 0) {
     return res.status(200).json({
       vendor_product: {
         vendor_id: req.params.id,
@@ -130,14 +71,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     });
   }
 
-  const existingForProduct = await linkService.list({
-    [Modules.PRODUCT]: { product_id: validatedBody.product_id },
-  });
-
-  const productLinks = normalizeLinkList(existingForProduct);
-  const linkedVendorId = productLinks
-    .map(extractVendorId)
-    .find((vendorId) => vendorId && vendorId !== req.params.id);
+  const existingForProduct = await linkService.list(
+    {
+      product_id: validatedBody.product_id,
+    },
+    { take: 1 }
+  );
+  const linkedVendorId = existingForProduct.find(
+    (link) => link.vendor_id && link.vendor_id !== req.params.id
+  )?.vendor_id;
 
   if (linkedVendorId) {
     return res.status(409).json({
@@ -145,10 +87,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     });
   }
 
-  await linkService.create({
-    [VENDOR_MODULE]: { vendor_id: req.params.id },
-    [Modules.PRODUCT]: { product_id: validatedBody.product_id },
-  });
+  await linkService.create(req.params.id, validatedBody.product_id);
 
   return res.status(200).json({
     vendor_product: {
