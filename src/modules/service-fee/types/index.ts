@@ -13,5 +13,29 @@ export enum ServiceFeeStatus {
   INACTIVE = "inactive",
 }
 
+export type ItemEligibilityConfig = {
+  include: {
+    categories: string[];
+    collection: string[];
+  };
+  exinclude: {
+    categories: string[];
+    collection: string[];
+  };
+};
+
+export type ShopEligibilityConfig =
+  | {
+      vendors: "all";
+    }
+  | {
+      vendors: string[];
+      vendor_group?: string[];
+    };
+
+export type ServiceFeeEligibilityConfig =
+  | ItemEligibilityConfig
+  | ShopEligibilityConfig;
+
 export type ServiceFee = InferTypeOf<typeof ServiceFeeModel>;
 export type CreateServiceFee = Omit<ServiceFee, "id">;

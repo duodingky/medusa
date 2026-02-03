@@ -5,7 +5,53 @@ import {
   ChargingLevel,
   ServiceFeeStatus,
 } from "../../../modules/service-fee/types";
-import { createServiceFeeSchema } from "./validation-schemas";
+import {
+  eligibilityConfigSchema,
+  createServiceFeeSchema,
+} from "./validation-schemas";
+
+const defaultItemEligibilityConfig = {
+  include: {
+    categories: [],
+    collection: [],
+  },
+  exinclude: {
+    categories: [],
+    collection: [],
+  },
+};
+
+const defaultShopEligibilityConfig = {
+  vendors: [],
+  vendor_group: [],
+};
+
+const normalizeEligibilityConfig = (
+  chargingLevel: ChargingLevel,
+  eligibilityConfig: unknown
+) => {
+  if (chargingLevel === ChargingLevel.ITEM_LEVEL) {
+    const parsed = eligibilityConfigSchema.safeParse(
+      eligibilityConfig ?? defaultItemEligibilityConfig
+    );
+    if (parsed.success && "include" in parsed.data) {
+      return parsed.data;
+    }
+    return defaultItemEligibilityConfig;
+  }
+
+  if (chargingLevel === ChargingLevel.SHOP_LEVEL) {
+    const parsed = eligibilityConfigSchema.safeParse(
+      eligibilityConfig ?? defaultShopEligibilityConfig
+    );
+    if (parsed.success && "vendors" in parsed.data) {
+      return parsed.data;
+    }
+    return defaultShopEligibilityConfig;
+  }
+
+  return null;
+};
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const serviceFeeModuleService: ServiceFeeModuleService = req.scope.resolve(
@@ -41,9 +87,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const now = new Date();
   const shouldForcePending =
     validatedBody.valid_from && validatedBody.valid_from > now;
+  const eligibility_config = normalizeEligibilityConfig(
+    validatedBody.charging_level,
+    validatedBody.eligibility_config
+  );
 
   const service_fee = await serviceFeeModuleService.createServiceFees({
     ...validatedBody,
+    eligibility_config,
     status: shouldForcePending
       ? ServiceFeeStatus.PENDING
       : validatedBody.status ?? ServiceFeeStatus.PENDING,
