@@ -84,6 +84,19 @@ const formatDateLabel = (value?: string | null) => {
   return parsed.toLocaleDateString();
 };
 
+const getErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const data = await response.json();
+    if (data && typeof data.message === "string") {
+      return data.message;
+    }
+  } catch (err) {
+    // Ignore JSON parsing errors and fall back to default.
+  }
+
+  return fallback;
+};
+
 const ServiceFeesPage = () => {
   const [serviceFees, setServiceFees] = useState<ServiceFee[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -203,7 +216,11 @@ const ServiceFeesPage = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to save service fee");
+        const message = await getErrorMessage(
+          response,
+          "Failed to save service fee"
+        );
+        throw new Error(message);
       }
 
       await loadServiceFees();
@@ -232,7 +249,11 @@ const ServiceFeesPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete service fee");
+        const message = await getErrorMessage(
+          response,
+          "Failed to delete service fee"
+        );
+        throw new Error(message);
       }
 
       await loadServiceFees();
