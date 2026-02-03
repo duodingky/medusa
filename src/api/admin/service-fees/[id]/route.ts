@@ -1,7 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { SERVICE_FEE_MODULE } from "../../../../modules/service-fee";
 import ServiceFeeModuleService from "../../../../modules/service-fee/service";
-import { ChargingLevel } from "../../../../modules/service-fee/types";
+import { ChargingLevel, ServiceFeeStatus } from "../../../../modules/service-fee/types";
 import { updateServiceFeeSchema } from "../validation-schemas";
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -23,13 +23,11 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     SERVICE_FEE_MODULE
   );
 
-  let targetChargingLevel = validatedBody.charging_level;
-
-  if (typeof targetChargingLevel === "undefined") {
-    const existingServiceFee =
-      await serviceFeeModuleService.retrieveServiceFee(req.params.id);
-    targetChargingLevel = existingServiceFee.charging_level;
-  }
+  const existingServiceFee = await serviceFeeModuleService.retrieveServiceFee(
+    req.params.id
+  );
+  const targetChargingLevel =
+    validatedBody.charging_level ?? existingServiceFee.charging_level;
 
   if (targetChargingLevel === ChargingLevel.GLOBAL) {
     const existingServiceFees =
@@ -47,9 +45,19 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
+  const effectiveValidFrom =
+    typeof validatedBody.valid_from !== "undefined"
+      ? validatedBody.valid_from
+      : existingServiceFee.valid_from;
+  const shouldForcePending =
+    effectiveValidFrom !== null &&
+    typeof effectiveValidFrom !== "undefined" &&
+    effectiveValidFrom > new Date();
+
   const service_fee = await serviceFeeModuleService.updateServiceFees({
     id: req.params.id,
     ...validatedBody,
+    ...(shouldForcePending ? { status: ServiceFeeStatus.PENDING } : {}),
   });
 
   return res.status(200).json({ service_fee });

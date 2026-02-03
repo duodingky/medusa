@@ -38,9 +38,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
+  const now = new Date();
+  const shouldForcePending =
+    validatedBody.valid_from && validatedBody.valid_from > now;
+
   const service_fee = await serviceFeeModuleService.createServiceFees({
     ...validatedBody,
-    status: validatedBody.status ?? ServiceFeeStatus.PENDING,
+    status: shouldForcePending
+      ? ServiceFeeStatus.PENDING
+      : validatedBody.status ?? ServiceFeeStatus.PENDING,
     date_created: new Date(),
   });
 
