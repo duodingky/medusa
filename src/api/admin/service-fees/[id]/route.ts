@@ -2,7 +2,53 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { SERVICE_FEE_MODULE } from "../../../../modules/service-fee";
 import ServiceFeeModuleService from "../../../../modules/service-fee/service";
 import { ChargingLevel, ServiceFeeStatus } from "../../../../modules/service-fee/types";
-import { updateServiceFeeSchema } from "../validation-schemas";
+import {
+  eligibilityConfigSchema,
+  updateServiceFeeSchema,
+} from "../validation-schemas";
+
+const defaultItemEligibilityConfig = {
+  include: {
+    categories: [],
+    collection: [],
+  },
+  exinclude: {
+    categories: [],
+    collection: [],
+  },
+};
+
+const defaultShopEligibilityConfig = {
+  vendors: [],
+  vendor_group: [],
+};
+
+const normalizeEligibilityConfig = (
+  chargingLevel: ChargingLevel,
+  eligibilityConfig: unknown
+) => {
+  if (chargingLevel === ChargingLevel.ITEM_LEVEL) {
+    const parsed = eligibilityConfigSchema.safeParse(
+      eligibilityConfig ?? defaultItemEligibilityConfig
+    );
+    if (parsed.success && "include" in parsed.data) {
+      return parsed.data;
+    }
+    return defaultItemEligibilityConfig;
+  }
+
+  if (chargingLevel === ChargingLevel.SHOP_LEVEL) {
+    const parsed = eligibilityConfigSchema.safeParse(
+      eligibilityConfig ?? defaultShopEligibilityConfig
+    );
+    if (parsed.success && "vendors" in parsed.data) {
+      return parsed.data;
+    }
+    return defaultShopEligibilityConfig;
+  }
+
+  return null;
+};
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const serviceFeeModuleService: ServiceFeeModuleService = req.scope.resolve(
@@ -28,6 +74,17 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   );
   const targetChargingLevel =
     validatedBody.charging_level ?? existingServiceFee.charging_level;
+  const shouldUpdateEligibilityConfig =
+    typeof validatedBody.eligibility_config !== "undefined" ||
+    (validatedBody.charging_level &&
+      validatedBody.charging_level !== existingServiceFee.charging_level);
+
+  const eligibility_config = shouldUpdateEligibilityConfig
+    ? normalizeEligibilityConfig(
+        targetChargingLevel,
+        validatedBody.eligibility_config
+      )
+    : undefined;
 
   if (targetChargingLevel === ChargingLevel.GLOBAL) {
     const existingServiceFees =
@@ -57,6 +114,9 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   const service_fee = await serviceFeeModuleService.updateServiceFees({
     id: req.params.id,
     ...validatedBody,
+    ...(shouldUpdateEligibilityConfig
+      ? { eligibility_config }
+      : {}),
     ...(shouldForcePending ? { status: ServiceFeeStatus.PENDING } : {}),
   });
 

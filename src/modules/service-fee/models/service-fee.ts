@@ -7,6 +7,7 @@ export const ServiceFee = model.define("servcie_fee", {
   fee_name: model.text(),
   charging_level: model.enum(ChargingLevel),
   rate: model.number(),
+  eligibility_config: model.json().nullable(),
   valid_from: model.dateTime().nullable(),
   valid_to: model.dateTime().nullable(),
   status: model.enum(ServiceFeeStatus).default(ServiceFeeStatus.PENDING),
