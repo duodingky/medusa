@@ -7,7 +7,7 @@ import {
   isPresent,
 } from "@medusajs/framework/utils";
 import indexEngineFeatureFlag from "@medusajs/medusa/feature-flags/index-engine";
-import { wrapVariantsWithInventoryQuantityForSalesChannel } from "@medusajs/medusa/api/utils/middlewares";
+import { wrapVariantsWithInventoryQuantityForSalesChannel } from "@medusajs/medusa/api/utils/middlewares/index";
 import {
   RequestWithContext,
   wrapProductsWithTaxPrices,

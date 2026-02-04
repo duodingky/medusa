@@ -5,7 +5,7 @@ import {
   MedusaError,
   QueryContext,
 } from "@medusajs/framework/utils";
-import { wrapVariantsWithInventoryQuantityForSalesChannel } from "@medusajs/medusa/api/utils/middlewares";
+import { wrapVariantsWithInventoryQuantityForSalesChannel } from "@medusajs/medusa/api/utils/middlewares/index";
 import {
   RequestWithContext,
   filterOutInternalProductCategories,
