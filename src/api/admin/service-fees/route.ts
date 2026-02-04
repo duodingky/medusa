@@ -5,6 +5,9 @@ import {
   ChargingLevel,
   ServiceFeeStatus,
 } from "../../../modules/service-fee/types";
+import { SERVICE_FEE_LOG_MODULE } from "../../../modules/service-fee-log";
+import ServiceFeeLogModuleService from "../../../modules/service-fee-log/service";
+import { ServiceFeeLogAction } from "../../../modules/service-fee-log/types";
 import {
   eligibilityConfigSchema,
   createServiceFeeSchema,
@@ -53,6 +56,30 @@ const normalizeEligibilityConfig = (
   return null;
 };
 
+const resolveActor = (req: MedusaRequest) => {
+  const authContext = req.auth_context as
+    | {
+        actor_id?: string;
+        actor_type?: string;
+        user_id?: string;
+        auth_identity_id?: string;
+      }
+    | undefined;
+  const reqWithUser = req as MedusaRequest & {
+    user?: { id?: string; actor_type?: string };
+  };
+  const actor_id =
+    authContext?.actor_id ??
+    authContext?.user_id ??
+    authContext?.auth_identity_id ??
+    reqWithUser.user?.id ??
+    null;
+  const actor_type =
+    authContext?.actor_type ?? reqWithUser.user?.actor_type ?? null;
+
+  return { actor_id, actor_type };
+};
+
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const serviceFeeModuleService: ServiceFeeModuleService = req.scope.resolve(
     SERVICE_FEE_MODULE
@@ -68,6 +95,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const serviceFeeModuleService: ServiceFeeModuleService = req.scope.resolve(
     SERVICE_FEE_MODULE
+  );
+  const serviceFeeLogService: ServiceFeeLogModuleService = req.scope.resolve(
+    SERVICE_FEE_LOG_MODULE
   );
 
   if (validatedBody.charging_level === ChargingLevel.GLOBAL) {
@@ -99,6 +129,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       ? ServiceFeeStatus.PENDING
       : validatedBody.status ?? ServiceFeeStatus.PENDING,
     date_created: new Date(),
+  });
+
+  const { actor_id, actor_type } = resolveActor(req);
+  await serviceFeeLogService.createServiceFeeLogs({
+    service_fee_id: service_fee.id,
+    action: ServiceFeeLogAction.ADDED,
+    note: "Added",
+    actor_id,
+    actor_type,
   });
 
   return res.status(200).json({ service_fee });
