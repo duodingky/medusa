@@ -3,22 +3,18 @@ import { Buildings } from "@medusajs/icons";
 import { Container, Heading } from "@medusajs/ui";
 import { FormEvent, useEffect, useState } from "react";
 
-type ServiceFeeLogAction = "added" | "updated" | "deleted";
-
 type ServiceFeeLog = {
-  id: string;
-  service_fee_id: string;
-  action: ServiceFeeLogAction;
-  note: string;
-  actor_id?: string | null;
-  actor_type?: string | null;
-  created_at?: string | null;
-};
-
-const actionLabels: Record<ServiceFeeLogAction, string> = {
-  added: "Added",
-  updated: "Updated",
-  deleted: "Deleted",
+  id: number;
+  user?: string | null;
+  display_name?: string | null;
+  fee_name?: string | null;
+  charging_level?: string | null;
+  rate?: number | string | null;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  status?: string | null;
+  eligibility_config?: unknown;
+  date_added?: string | null;
 };
 
 const formatDateTime = (value?: string | null) => {
@@ -32,6 +28,21 @@ const formatDateTime = (value?: string | null) => {
   }
 
   return parsed.toLocaleString();
+};
+
+const formatEligibilityConfig = (value: unknown) => {
+  if (!value) {
+    return "-";
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized.length > 120
+      ? `${serialized.slice(0, 117)}...`
+      : serialized;
+  } catch (err) {
+    return "-";
+  }
 };
 
 const buildQueryString = (params: Record<string, string>) => {
@@ -51,9 +62,11 @@ const ServiceFeeLogsPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
-    action: "",
-    service_fee_id: "",
-    actor_id: "",
+    user: "",
+    display_name: "",
+    fee_name: "",
+    charging_level: "",
+    status: "",
   });
 
   const loadLogs = async (
@@ -65,9 +78,11 @@ const ServiceFeeLogsPage = () => {
     try {
       const activeFilters = overrideFilters ?? filters;
       const queryString = buildQueryString({
-        action: activeFilters.action,
-        service_fee_id: activeFilters.service_fee_id.trim(),
-        actor_id: activeFilters.actor_id.trim(),
+        user: activeFilters.user.trim(),
+        display_name: activeFilters.display_name.trim(),
+        fee_name: activeFilters.fee_name.trim(),
+        charging_level: activeFilters.charging_level,
+        status: activeFilters.status,
       });
       const response = await fetch(`/admin/service-fee-logs${queryString}`, {
         credentials: "include",
@@ -101,17 +116,15 @@ const ServiceFeeLogsPage = () => {
   };
 
   const clearFilters = () => {
-    const cleared = { action: "", service_fee_id: "", actor_id: "" };
+    const cleared = {
+      user: "",
+      display_name: "",
+      fee_name: "",
+      charging_level: "",
+      status: "",
+    };
     setFilters(cleared);
     loadLogs(cleared);
-  };
-
-  const formatActor = (log: ServiceFeeLog) => {
-    if (!log.actor_id) {
-      return "-";
-    }
-
-    return log.actor_type ? `${log.actor_id} (${log.actor_type})` : log.actor_id;
   };
 
   return (
@@ -123,48 +136,81 @@ const ServiceFeeLogsPage = () => {
         <form className="grid gap-4" onSubmit={applyFilters}>
           <div className="grid gap-4 md:grid-cols-3">
             <label className="flex flex-col gap-1">
-              <span className="text-ui-fg-subtle">Action</span>
-              <select
+              <span className="text-ui-fg-subtle">User</span>
+              <input
                 className="rounded-md border border-ui-border-base px-3 py-2"
-                value={filters.action}
+                value={filters.user}
                 onChange={(event) =>
                   setFilters((prev) => ({
                     ...prev,
-                    action: event.target.value,
+                    user: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-ui-fg-subtle">Display name</span>
+              <input
+                className="rounded-md border border-ui-border-base px-3 py-2"
+                value={filters.display_name}
+                onChange={(event) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    display_name: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-ui-fg-subtle">Fee name</span>
+              <input
+                className="rounded-md border border-ui-border-base px-3 py-2"
+                value={filters.fee_name}
+                onChange={(event) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    fee_name: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-ui-fg-subtle">Charging level</span>
+              <select
+                className="rounded-md border border-ui-border-base px-3 py-2"
+                value={filters.charging_level}
+                onChange={(event) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    charging_level: event.target.value,
                   }))
                 }
               >
                 <option value="">All</option>
-                <option value="added">Added</option>
-                <option value="updated">Updated</option>
-                <option value="deleted">Deleted</option>
+                <option value="global">Global</option>
+                <option value="item_level">Item level</option>
+                <option value="shop_level">Shop level</option>
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-ui-fg-subtle">Service fee ID</span>
-              <input
+              <span className="text-ui-fg-subtle">Status</span>
+              <select
                 className="rounded-md border border-ui-border-base px-3 py-2"
-                value={filters.service_fee_id}
+                value={filters.status}
                 onChange={(event) =>
                   setFilters((prev) => ({
                     ...prev,
-                    service_fee_id: event.target.value,
+                    status: event.target.value,
                   }))
                 }
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-ui-fg-subtle">User ID</span>
-              <input
-                className="rounded-md border border-ui-border-base px-3 py-2"
-                value={filters.actor_id}
-                onChange={(event) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    actor_id: event.target.value,
-                  }))
-                }
-              />
+              >
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="inactive">Inactive</option>
+              </select>
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -197,11 +243,17 @@ const ServiceFeeLogsPage = () => {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-ui-border-base text-left text-ui-fg-subtle">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Service fee</th>
-                  <th className="py-2 pr-4">Action</th>
-                  <th className="py-2 pr-4">Note</th>
+                  <th className="py-2 pr-4">ID</th>
                   <th className="py-2 pr-4">User</th>
+                  <th className="py-2 pr-4">Display name</th>
+                  <th className="py-2 pr-4">Fee name</th>
+                  <th className="py-2 pr-4">Charging level</th>
+                  <th className="py-2 pr-4">Rate</th>
+                  <th className="py-2 pr-4">Valid from</th>
+                  <th className="py-2 pr-4">Valid to</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">Eligibility config</th>
+                  <th className="py-2 pr-4">Date added</th>
                 </tr>
               </thead>
               <tbody>
@@ -210,13 +262,25 @@ const ServiceFeeLogsPage = () => {
                     key={log.id}
                     className="border-b border-ui-border-base"
                   >
-                    <td className="py-3 pr-4">{formatDateTime(log.created_at)}</td>
-                    <td className="py-3 pr-4">{log.service_fee_id}</td>
+                    <td className="py-3 pr-4">{log.id}</td>
+                    <td className="py-3 pr-4">{log.user ?? "-"}</td>
+                    <td className="py-3 pr-4">{log.display_name ?? "-"}</td>
+                    <td className="py-3 pr-4">{log.fee_name ?? "-"}</td>
+                    <td className="py-3 pr-4">{log.charging_level ?? "-"}</td>
                     <td className="py-3 pr-4">
-                      {actionLabels[log.action] ?? log.action}
+                      {log.rate === null || typeof log.rate === "undefined"
+                        ? "-"
+                        : log.rate}
                     </td>
-                    <td className="py-3 pr-4">{log.note}</td>
-                    <td className="py-3 pr-4">{formatActor(log)}</td>
+                    <td className="py-3 pr-4">{formatDateTime(log.valid_from)}</td>
+                    <td className="py-3 pr-4">{formatDateTime(log.valid_to)}</td>
+                    <td className="py-3 pr-4">{log.status ?? "-"}</td>
+                    <td className="py-3 pr-4">
+                      {formatEligibilityConfig(log.eligibility_config)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {formatDateTime(log.date_added)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -1,11 +1,16 @@
 import { model } from "@medusajs/framework/utils";
-import { ServiceFeeLogAction } from "../types";
 
 export const ServiceFeeLog = model.define("service_fee_logs", {
-  id: model.id().primaryKey(),
+  id: model.number().primaryKey(),
   service_fee_id: model.text(),
-  action: model.enum(ServiceFeeLogAction),
-  note: model.text(),
-  actor_id: model.text().nullable(),
-  actor_type: model.text().nullable(),
+  user: model.text().nullable(),
+  display_name: model.text().nullable(),
+  fee_name: model.text().nullable(),
+  charging_level: model.text().nullable(),
+  rate: model.number().nullable(),
+  valid_from: model.dateTime().nullable(),
+  valid_to: model.dateTime().nullable(),
+  status: model.text().nullable(),
+  eligibility_config: model.json().nullable(),
+  date_added: model.dateTime(),
 });
