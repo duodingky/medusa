@@ -203,6 +203,7 @@ const ServiceFeesPage = () => {
   const [formState, setFormState] = useState<ServiceFeeFormState>(
     defaultServiceFeeFormState
   );
+  const [isIndefinite, setIsIndefinite] = useState(false);
   const [lockedChargingLevel, setLockedChargingLevel] =
     useState<ChargingLevel | null>(null);
   const [itemEligibility, setItemEligibility] = useState<ItemEligibilityConfig>(
@@ -354,6 +355,7 @@ const ServiceFeesPage = () => {
     setEditingServiceFeeId(null);
     setLockedChargingLevel(null);
     setFormState(defaultServiceFeeFormState);
+    setIsIndefinite(false);
     resetEligibilityState();
     setIsModalOpen(true);
   };
@@ -365,6 +367,7 @@ const ServiceFeesPage = () => {
       ...defaultServiceFeeFormState,
       charging_level: "global",
     });
+    setIsIndefinite(false);
     resetEligibilityState();
     setIsModalOpen(true);
   };
@@ -375,6 +378,9 @@ const ServiceFeesPage = () => {
   ) => {
     setEditingServiceFeeId(serviceFee.id);
     setLockedChargingLevel(lockLevel);
+    const validFrom = formatDateInput(serviceFee.valid_from);
+    const validTo = formatDateInput(serviceFee.valid_to);
+    const shouldSaveIndefinitely = !validFrom && !validTo;
     setFormState({
       display_name: serviceFee.display_name ?? "",
       fee_name: serviceFee.fee_name ?? "",
@@ -383,10 +389,11 @@ const ServiceFeesPage = () => {
         serviceFee.rate === null || serviceFee.rate === undefined
           ? ""
           : String(serviceFee.rate),
-      valid_from: formatDateInput(serviceFee.valid_from),
-      valid_to: formatDateInput(serviceFee.valid_to),
+      valid_from: validFrom,
+      valid_to: validTo,
       status: serviceFee.status ?? "pending",
     });
+    setIsIndefinite(shouldSaveIndefinitely);
     const eligibilityConfig = serviceFee.eligibility_config;
     if (
       serviceFee.charging_level === "item_level" &&
@@ -442,6 +449,7 @@ const ServiceFeesPage = () => {
     setEditingServiceFeeId(null);
     setLockedChargingLevel(null);
     setFormState(defaultServiceFeeFormState);
+    setIsIndefinite(false);
     resetEligibilityState();
   };
 
@@ -452,6 +460,7 @@ const ServiceFeesPage = () => {
 
     try {
       const chargingLevel = lockedChargingLevel ?? formState.charging_level;
+      const shouldSaveIndefinitely = isIndefinite;
       const eligibilityConfig =
         chargingLevel === "item_level"
           ? itemEligibility
@@ -469,8 +478,12 @@ const ServiceFeesPage = () => {
         fee_name: formState.fee_name.trim(),
         charging_level: chargingLevel,
         rate: Number(formState.rate),
-        valid_from: formState.valid_from || undefined,
-        valid_to: formState.valid_to || undefined,
+        valid_from: shouldSaveIndefinitely
+          ? undefined
+          : formState.valid_from || undefined,
+        valid_to: shouldSaveIndefinitely
+          ? undefined
+          : formState.valid_to || undefined,
         status: formState.status,
         eligibility_config: eligibilityConfig,
       };
@@ -575,7 +588,7 @@ const ServiceFeesPage = () => {
     }));
   };
 
-  const globalServiceFee = serviceFees.find(
+  const globalServiceFees = serviceFees.filter(
     (serviceFee) => serviceFee.charging_level === "global"
   );
   const nonGlobalServiceFees = serviceFees.filter(
@@ -645,49 +658,75 @@ const ServiceFeesPage = () => {
           <button
             className="rounded-md border border-ui-border-base px-3 py-1"
             type="button"
-            onClick={() =>
-              globalServiceFee
-                ? openEditModal(globalServiceFee, "global")
-                : openGlobalCreateModal()
-            }
+            onClick={openGlobalCreateModal}
             disabled={isSaving}
           >
-            {globalServiceFee ? "Edit global" : "Add global"}
+            Add global
           </button>
         </div>
         {isLoading ? (
           <p className="mt-3 text-ui-fg-subtle">Loading global charging...</p>
-        ) : globalServiceFee ? (
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-ui-fg-subtle">Display name</p>
-              <p>{globalServiceFee.display_name}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Fee name</p>
-              <p>{globalServiceFee.fee_name}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Rate (%)</p>
-              <p>{globalServiceFee.rate}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Status</p>
-              <p>{statusLabels[globalServiceFee.status]}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Valid from</p>
-              <p>{formatDateLabel(globalServiceFee.valid_from)}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Valid to</p>
-              <p>{formatDateLabel(globalServiceFee.valid_to)}</p>
-            </div>
-          </div>
-        ) : (
+        ) : globalServiceFees.length === 0 ? (
           <p className="mt-3 text-ui-fg-subtle">
             No global charging set yet.
           </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-ui-border-base text-left text-ui-fg-subtle">
+                  <th className="py-2 pr-4">Display name</th>
+                  <th className="py-2 pr-4">Fee name</th>
+                  <th className="py-2 pr-4">Rate (%)</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">Valid from</th>
+                  <th className="py-2 pr-4">Valid to</th>
+                  <th className="py-2 pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {globalServiceFees.map((serviceFee) => (
+                  <tr
+                    key={serviceFee.id}
+                    className="border-b border-ui-border-base"
+                  >
+                    <td className="py-3 pr-4">{serviceFee.display_name}</td>
+                    <td className="py-3 pr-4">{serviceFee.fee_name}</td>
+                    <td className="py-3 pr-4">{serviceFee.rate}</td>
+                    <td className="py-3 pr-4">
+                      {statusLabels[serviceFee.status]}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {formatDateLabel(serviceFee.valid_from)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {formatDateLabel(serviceFee.valid_to)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          className="rounded-md border border-ui-border-base px-3 py-1"
+                          type="button"
+                          onClick={() => openEditModal(serviceFee, "global")}
+                          disabled={isSaving}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="rounded-md border border-ui-border-base px-3 py-1 text-ui-fg-error"
+                          type="button"
+                          onClick={() => handleDelete(serviceFee.id)}
+                          disabled={isSaving}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       <div className="px-6 py-4">
@@ -873,36 +912,6 @@ const ServiceFeesPage = () => {
                   </select>
                 </label>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1">
-                  <span className="text-ui-fg-subtle">Valid from</span>
-                  <input
-                    className="rounded-md border border-ui-border-base px-3 py-2"
-                    type="date"
-                    value={formState.valid_from}
-                    onChange={(event) =>
-                      setFormState((prev) => ({
-                        ...prev,
-                        valid_from: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-ui-fg-subtle">Valid to</span>
-                  <input
-                    className="rounded-md border border-ui-border-base px-3 py-2"
-                    type="date"
-                    value={formState.valid_to}
-                    onChange={(event) =>
-                      setFormState((prev) => ({
-                        ...prev,
-                        valid_to: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              </div>
               {currentChargingLevel === "item_level" && (
                 <div className="rounded-md border border-ui-border-base p-4">
                   <Heading level="h3">Item eligibility</Heading>
@@ -1083,6 +1092,59 @@ const ServiceFeesPage = () => {
                   </div>
                 </div>
               )}
+              <div className="rounded-md border border-ui-border-base p-4">
+                <Heading level="h3">Period</Heading>
+                <label className="mt-3 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isIndefinite}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setIsIndefinite(checked);
+                      if (checked) {
+                        setFormState((prev) => ({
+                          ...prev,
+                          valid_from: "",
+                          valid_to: "",
+                        }));
+                      }
+                    }}
+                  />
+                  <span>Save it indefinitely</span>
+                </label>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-ui-fg-subtle">Valid from</span>
+                    <input
+                      className="rounded-md border border-ui-border-base px-3 py-2"
+                      type="date"
+                      value={formState.valid_from}
+                      disabled={isIndefinite}
+                      onChange={(event) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          valid_from: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-ui-fg-subtle">Valid to</span>
+                    <input
+                      className="rounded-md border border-ui-border-base px-3 py-2"
+                      type="date"
+                      value={formState.valid_to}
+                      disabled={isIndefinite}
+                      onChange={(event) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          valid_to: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
               {error && <p className="text-ui-fg-error">{error}</p>}
               <div className="flex flex-wrap gap-2">
                 <button
