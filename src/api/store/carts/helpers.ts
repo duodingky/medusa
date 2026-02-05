@@ -20,6 +20,7 @@ export const refetchCart = async (
     "items.variant.product_id",
     "items.variant.product.id",
     "shipping_total",
+    "shipping_subtotal",
     "shipping_methods.amount",
   ];
   const cartFields = Array.from(new Set([...(fields ?? []), ...requiredFields]));

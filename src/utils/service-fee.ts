@@ -64,6 +64,7 @@ type CartSnapshot = {
   original_item_total?: number | null;
   original_item_subtotal?: number | null;
   shipping_total?: number | null;
+  shipping_subtotal?: number | null;
   shipping_methods?: ShippingMethodSnapshot[] | null;
 };
 
@@ -345,19 +346,36 @@ const calculateFeeAmount = (base: number, rate: number) => {
   return (base * rate) / 100;
 };
 
+const toNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
 const resolveShippingTotal = (cart: {
   shipping_total?: number | null;
+  shipping_subtotal?: number | null;
   shipping_methods?: ShippingMethodSnapshot[] | null;
 }) => {
-  if (typeof cart.shipping_total === "number") {
-    return cart.shipping_total;
+  const directTotal =
+    toNumber(cart.shipping_total) ?? toNumber(cart.shipping_subtotal);
+  if (directTotal != null) {
+    return directTotal;
   }
   const methods = cart.shipping_methods ?? [];
   return methods.reduce((sum, method) => {
-    if (typeof method?.amount !== "number" || !Number.isFinite(method.amount)) {
+    const amount = toNumber(method?.amount);
+    if (amount == null) {
       return sum;
     }
-    return sum + method.amount;
+    return sum + amount;
   }, 0);
 };
 
@@ -584,7 +602,8 @@ const applyServiceFeesToItems = async (
 
   items.forEach((item) => {
     const productId = resolveItemProductId(item);
-    if (item.unit_price == null) {
+    const unitPrice = toNumber(item.unit_price);
+    if (unitPrice == null) {
       hasMissingPrice = true;
       return;
     }
@@ -595,14 +614,11 @@ const applyServiceFeesToItems = async (
       : fallbackFee;
     const rate =
       fee && typeof fee.rate !== "undefined" ? Number(fee.rate) : fallbackRate;
-    const quantity =
-      typeof item.quantity === "number" && Number.isFinite(item.quantity)
-        ? item.quantity
-        : 1;
-    const feeAmount = calculateFeeAmount(item.unit_price, rate);
+    const quantity = toNumber(item.quantity) ?? 1;
+    const feeAmount = calculateFeeAmount(unitPrice, rate);
     const itemFeeTotal = feeAmount * quantity;
 
-    item.final_price = item.unit_price + feeAmount;
+    item.final_price = unitPrice + feeAmount;
     item.unit_price = item.final_price;
     feeTotal += itemFeeTotal;
     computedItemTotal += item.final_price * quantity;
@@ -640,9 +656,7 @@ export const applyServiceFeesToCart = async (
 
   const baseSubtotal = !hasMissingPrice
     ? computedItemTotal
-    : typeof cart.subtotal === "number"
-      ? cart.subtotal
-      : null;
+    : toNumber(cart.subtotal);
   const shippingTotal = resolveShippingTotal(cart);
 
   if (!hasMissingPrice) {
@@ -677,9 +691,7 @@ export const applyServiceFeesToOrder = async (
 
   const baseSubtotal = !hasMissingPrice
     ? computedItemTotal
-    : typeof order.subtotal === "number"
-      ? order.subtotal
-      : null;
+    : toNumber(order.subtotal);
   const shippingTotal = resolveShippingTotal(order);
 
   if (!hasMissingPrice) {

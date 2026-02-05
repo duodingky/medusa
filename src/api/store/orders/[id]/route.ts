@@ -17,6 +17,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     "items.variant.product_id",
     "items.variant.product.id",
     "shipping_total",
+    "shipping_subtotal",
     "shipping_methods.amount",
   ];
   const orderFields = Array.from(

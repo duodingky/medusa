@@ -66,6 +66,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     "items.quantity",
     "items.product_id",
     "shipping_total",
+    "shipping_subtotal",
     "shipping_methods.amount",
   ];
   const orderFields = Array.from(
