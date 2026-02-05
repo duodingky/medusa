@@ -38,6 +38,7 @@ type ProductSnapshotWithVariants = ProductSnapshot & {
 type CartLineItemSnapshot = {
   product_id?: string | null;
   product?: ProductSnapshot | null;
+  variant?: { product_id?: string | null; product?: ProductSnapshot | null } | null;
   unit_price?: number | null;
   quantity?: number | null;
   final_price?: number | null;
@@ -59,6 +60,8 @@ type CartSnapshot = {
   original_item_total?: number | null;
   original_item_subtotal?: number | null;
 };
+
+type OrderSnapshot = CartSnapshot;
 
 type ServiceFeeCandidate = ServiceFee & {
   eligibility_config?: ItemEligibilityConfig | ShopEligibilityConfig | null;
@@ -184,6 +187,34 @@ const normalizeIdList = (value: unknown): string[] => {
     return value.filter((entry): entry is string => typeof entry === "string");
   }
   return [];
+};
+
+const resolveItemProduct = (
+  item: CartLineItemSnapshot
+): ProductSnapshot | null => {
+  if (item.product) {
+    return item.product;
+  }
+  if (item.product_id) {
+    return { id: item.product_id };
+  }
+  if (item.variant?.product) {
+    return item.variant.product;
+  }
+  if (item.variant?.product_id) {
+    return { id: item.variant.product_id };
+  }
+  return null;
+};
+
+const resolveItemProductId = (item: CartLineItemSnapshot): string | null => {
+  return (
+    item.product_id ??
+    item.product?.id ??
+    item.variant?.product_id ??
+    item.variant?.product?.id ??
+    null
+  );
 };
 
 const matchesItemEligibility = (
@@ -502,13 +533,12 @@ export const applyServiceFeesToProducts = async (
   });
 };
 
-export const applyServiceFeesToCart = async (
+const applyServiceFeesToItems = async (
   scope: MedusaContainer,
-  cart: CartSnapshot
+  items: CartLineItemSnapshot[]
 ) => {
-  const items = cart.items ?? [];
-  if (items.length === 0) {
-    return;
+  if (!items.length) {
+    return { feeTotal: 0, computedItemTotal: 0, hasMissingPrice: false };
   }
 
   const { itemFees, shopFees, globalFees } = await resolveServiceFees(scope);
@@ -517,13 +547,7 @@ export const applyServiceFeesToCart = async (
   const fallbackFee = pickBestFee(globalFees);
   const fallbackRate = Number(fallbackFee?.rate ?? 0);
   const products = items
-    .map((item) =>
-      item.product
-        ? item.product
-        : item.product_id
-          ? { id: item.product_id }
-          : null
-    )
+    .map((item) => resolveItemProduct(item))
     .filter((product): product is ProductSnapshot => !!product);
   const eligibilityMap = await buildProductEligibilityMap(
     scope,
@@ -533,10 +557,13 @@ export const applyServiceFeesToCart = async (
   );
 
   let feeTotal = 0;
+  let computedItemTotal = 0;
+  let hasMissingPrice = false;
 
   items.forEach((item) => {
-    const productId = item.product_id ?? item.product?.id;
+    const productId = resolveItemProductId(item);
     if (item.unit_price == null) {
+      hasMissingPrice = true;
       return;
     }
 
@@ -546,13 +573,17 @@ export const applyServiceFeesToCart = async (
       : fallbackFee;
     const rate =
       fee && typeof fee.rate !== "undefined" ? Number(fee.rate) : fallbackRate;
+    const quantity =
+      typeof item.quantity === "number" && Number.isFinite(item.quantity)
+        ? item.quantity
+        : 1;
     const feeAmount = calculateFeeAmount(item.unit_price, rate);
-    const quantity = item.quantity ?? 1;
     const itemFeeTotal = feeAmount * quantity;
 
     item.final_price = item.unit_price + feeAmount;
     item.unit_price = item.final_price;
     feeTotal += itemFeeTotal;
+    computedItemTotal += item.final_price * quantity;
 
     addNumericDelta(item, "subtotal", itemFeeTotal);
     addNumericDelta(item, "total", itemFeeTotal);
@@ -561,6 +592,20 @@ export const applyServiceFeesToCart = async (
     addNumericDelta(item, "original_item_total", itemFeeTotal);
     addNumericDelta(item, "original_item_subtotal", itemFeeTotal);
   });
+
+  return { feeTotal, computedItemTotal, hasMissingPrice };
+};
+
+export const applyServiceFeesToCart = async (
+  scope: MedusaContainer,
+  cart: CartSnapshot
+) => {
+  const items = cart.items ?? [];
+  if (items.length === 0) {
+    return;
+  }
+  const { feeTotal, computedItemTotal, hasMissingPrice } =
+    await applyServiceFeesToItems(scope, items);
 
   if (feeTotal !== 0) {
     addNumericDelta(cart, "subtotal", feeTotal);
@@ -571,19 +616,30 @@ export const applyServiceFeesToCart = async (
     addNumericDelta(cart, "original_item_subtotal", feeTotal);
   }
 
-  const computedTotal = items.reduce((sum, item) => {
-    const finalPrice =
-      typeof item.final_price === "number" ? item.final_price : null;
-    if (finalPrice == null) {
-      return sum;
-    }
-    const quantity =
-      typeof item.quantity === "number" && Number.isFinite(item.quantity)
-        ? item.quantity
-        : 1;
-    return sum + finalPrice * quantity;
-  }, 0);
+  if (!hasMissingPrice) {
+    cart.total = computedItemTotal;
+  }
+};
 
-  cart.total = computedTotal;
+export const applyServiceFeesToOrder = async (
+  scope: MedusaContainer,
+  order: OrderSnapshot
+) => {
+  const items = order.items ?? [];
+  if (items.length === 0) {
+    return;
+  }
+
+  const { feeTotal } = await applyServiceFeesToItems(scope, items);
+
+  if (feeTotal !== 0) {
+    addNumericDelta(order, "subtotal", feeTotal);
+    addNumericDelta(order, "total", feeTotal);
+    addNumericDelta(order, "item_total", feeTotal);
+    addNumericDelta(order, "item_subtotal", feeTotal);
+    addNumericDelta(order, "original_total", feeTotal);
+    addNumericDelta(order, "original_item_total", feeTotal);
+    addNumericDelta(order, "original_item_subtotal", feeTotal);
+  }
 };
 

@@ -8,6 +8,7 @@ import {
 } from "@medusajs/framework/utils";
 import { refetchCart } from "../../helpers";
 import { defaultStoreCartFields } from "@medusajs/medusa/api/store/carts/query-config";
+import { applyServiceFeesToOrder } from "../../../../../utils/service-fee";
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const cart_id = req.params.id;
@@ -60,14 +61,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return;
   }
 
+  const requiredOrderFields = [
+    "items.unit_price",
+    "items.quantity",
+    "items.product_id",
+  ];
+  const orderFields = Array.from(
+    new Set([...(req.queryConfig.fields ?? []), ...requiredOrderFields])
+  );
+
   const { data } = await query.graph({
     entity: "order",
-    fields: req.queryConfig.fields,
+    fields: orderFields,
     filters: { id: result.id },
   });
+  const order = data[0];
+  if (order) {
+    await applyServiceFeesToOrder(req.scope, order);
+  }
 
   res.status(200).json({
     type: "order",
-    order: data[0],
+    order,
   });
 }
