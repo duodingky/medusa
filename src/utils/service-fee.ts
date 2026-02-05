@@ -564,12 +564,26 @@ export const applyServiceFeesToCart = async (
 
   if (feeTotal !== 0) {
     addNumericDelta(cart, "subtotal", feeTotal);
-    addNumericDelta(cart, "total", feeTotal);
     addNumericDelta(cart, "item_total", feeTotal);
     addNumericDelta(cart, "item_subtotal", feeTotal);
     addNumericDelta(cart, "original_total", feeTotal);
     addNumericDelta(cart, "original_item_total", feeTotal);
     addNumericDelta(cart, "original_item_subtotal", feeTotal);
   }
+
+  const computedTotal = items.reduce((sum, item) => {
+    const finalPrice =
+      typeof item.final_price === "number" ? item.final_price : null;
+    if (finalPrice == null) {
+      return sum;
+    }
+    const quantity =
+      typeof item.quantity === "number" && Number.isFinite(item.quantity)
+        ? item.quantity
+        : 1;
+    return sum + finalPrice * quantity;
+  }, 0);
+
+  cart.total = computedTotal;
 };
 
