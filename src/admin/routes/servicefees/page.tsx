@@ -380,8 +380,7 @@ const ServiceFeesPage = () => {
     setLockedChargingLevel(lockLevel);
     const validFrom = formatDateInput(serviceFee.valid_from);
     const validTo = formatDateInput(serviceFee.valid_to);
-    const shouldSaveIndefinitely =
-      serviceFee.status === "active" && !validFrom && !validTo;
+    const shouldSaveIndefinitely = !validFrom && !validTo;
     setFormState({
       display_name: serviceFee.display_name ?? "",
       fee_name: serviceFee.fee_name ?? "",
@@ -485,7 +484,7 @@ const ServiceFeesPage = () => {
         valid_to: shouldSaveIndefinitely
           ? undefined
           : formState.valid_to || undefined,
-        status: shouldSaveIndefinitely ? "active" : formState.status,
+        status: formState.status,
         eligibility_config: eligibilityConfig,
       };
 
@@ -897,8 +896,7 @@ const ServiceFeesPage = () => {
                   <select
                     className="rounded-md border border-ui-border-base px-3 py-2"
                     required
-                    value={isIndefinite ? "active" : formState.status}
-                    disabled={isIndefinite}
+                    value={formState.status}
                     onChange={(event) =>
                       setFormState((prev) => ({
                         ...prev,
@@ -1108,7 +1106,6 @@ const ServiceFeesPage = () => {
                           ...prev,
                           valid_from: "",
                           valid_to: "",
-                          status: "active",
                         }));
                       }
                     }}
