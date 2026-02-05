@@ -16,6 +16,7 @@ export const refetchCart = async (
     "items.unit_price",
     "items.quantity",
     "items.product_id",
+    "items.variant_id",
     "items.product.id",
     "items.variant.product_id",
     "items.variant.product.id",

@@ -41,6 +41,7 @@ type ShippingMethodSnapshot = {
 
 type CartLineItemSnapshot = {
   product_id?: string | null;
+  variant_id?: string | null;
   product?: ProductSnapshot | null;
   variant?: { product_id?: string | null; product?: ProductSnapshot | null } | null;
   unit_price?: number | null;
@@ -419,6 +420,39 @@ const fetchProductAttributes = async (
   );
 };
 
+const fetchVariantProductMap = async (
+  scope: MedusaContainer,
+  variantIds: string[]
+) => {
+  if (variantIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const query = scope.resolve(ContainerRegistrationKeys.QUERY);
+  const { data } = await query.graph({
+    entity: "product_variant",
+    fields: ["id", "product_id", "product.id"],
+    filters: { id: variantIds },
+  });
+
+  const map = new Map<string, string>();
+  (data ?? []).forEach(
+    (variant: {
+      id?: string | null;
+      product_id?: string | null;
+      product?: { id?: string | null } | null;
+    }) => {
+      const variantId = variant.id ?? null;
+      const productId = variant.product_id ?? variant.product?.id ?? null;
+      if (variantId && productId) {
+        map.set(variantId, productId);
+      }
+    }
+  );
+
+  return map;
+};
+
 const fetchVendorGroupMap = async (
   scope: MedusaContainer,
   vendorIds: string[]
@@ -586,8 +620,21 @@ const applyServiceFeesToItems = async (
   const needsShopLevel = shopFees.length > 0;
   const fallbackFee = pickBestFee(globalFees);
   const fallbackRate = Number(fallbackFee?.rate ?? 0);
+  const variantIds = items
+    .map((item) => item.variant_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  const variantProductMap = await fetchVariantProductMap(scope, variantIds);
   const products = items
-    .map((item) => resolveItemProduct(item))
+    .map((item) => {
+      const resolved = resolveItemProduct(item);
+      if (resolved) {
+        return resolved;
+      }
+      const variantProductId = item.variant_id
+        ? variantProductMap.get(item.variant_id)
+        : null;
+      return variantProductId ? { id: variantProductId } : null;
+    })
     .filter((product): product is ProductSnapshot => !!product);
   const eligibilityMap = await buildProductEligibilityMap(
     scope,
@@ -601,7 +648,9 @@ const applyServiceFeesToItems = async (
   let hasMissingPrice = false;
 
   items.forEach((item) => {
-    const productId = resolveItemProductId(item);
+    const productId =
+      resolveItemProductId(item) ??
+      (item.variant_id ? variantProductMap.get(item.variant_id) ?? null : null);
     const unitPrice = toNumber(item.unit_price);
     if (unitPrice == null) {
       hasMissingPrice = true;

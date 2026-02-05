@@ -65,6 +65,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     "items.unit_price",
     "items.quantity",
     "items.product_id",
+    "items.variant_id",
     "shipping_total",
     "shipping_subtotal",
     "shipping_methods.amount",
