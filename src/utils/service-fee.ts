@@ -319,6 +319,29 @@ const addNumericDelta = (
   }
 };
 
+const resolveLineItemBasePrice = (
+  item: CartLineItemSnapshot,
+  quantity: number
+) => {
+  if (typeof item.final_price === "number") {
+    return item.final_price;
+  }
+
+  if (typeof item.total === "number" && quantity > 0) {
+    return item.total / quantity;
+  }
+
+  if (typeof item.subtotal === "number" && quantity > 0) {
+    return item.subtotal / quantity;
+  }
+
+  if (typeof item.unit_price === "number") {
+    return item.unit_price;
+  }
+
+  return null;
+};
+
 const fetchProductAttributes = async (
   scope: MedusaContainer,
   productIds: string[]
@@ -536,9 +559,6 @@ export const applyServiceFeesToCart = async (
 
   items.forEach((item) => {
     const productId = item.product_id ?? item.product?.id;
-    if (item.unit_price == null) {
-      return;
-    }
 
     const eligibility = productId ? eligibilityMap.get(productId) : undefined;
     const fee = eligibility
@@ -546,11 +566,16 @@ export const applyServiceFeesToCart = async (
       : fallbackFee;
     const rate =
       fee && typeof fee.rate !== "undefined" ? Number(fee.rate) : fallbackRate;
-    const feeAmount = calculateFeeAmount(item.unit_price, rate);
     const quantity = item.quantity ?? 1;
+    const baseUnitPrice = resolveLineItemBasePrice(item, quantity);
+    if (baseUnitPrice == null) {
+      return;
+    }
+
+    const feeAmount = calculateFeeAmount(baseUnitPrice, rate);
     const itemFeeTotal = feeAmount * quantity;
 
-    item.final_price = item.unit_price + feeAmount;
+    item.final_price = baseUnitPrice + feeAmount;
     item.unit_price = item.final_price;
     feeTotal += itemFeeTotal;
 
