@@ -1,13 +1,28 @@
 import { loadEnv, defineConfig } from '@medusajs/framework/utils'
 
-loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+loadEnv(process.env.NODE_ENV || "development", process.cwd())
+
+const buildStoreCors = () => {
+  const corsValue = process.env.STORE_CORS ?? "";
+  const localhostAnyPort = "/^http:\\/\\/localhost:\\d+$/";
+  const entries = corsValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (!entries.includes(localhostAnyPort)) {
+    entries.push(localhostAnyPort);
+  }
+
+  return entries.join(",");
+};
 
 // Use 'export default' instead of 'module.exports'
 export default defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
     http: {
-      storeCors: process.env.STORE_CORS!,
+      storeCors: buildStoreCors(),
       adminCors: process.env.ADMIN_CORS!, // Ensure your .env has no trailing slash
       authCors: process.env.AUTH_CORS!,
       jwtSecret: process.env.JWT_SECRET || "supersecret",
