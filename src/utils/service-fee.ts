@@ -630,16 +630,23 @@ export const applyServiceFeesToOrder = async (
     return;
   }
 
-  const { feeTotal } = await applyServiceFeesToItems(scope, items);
+  const { feeTotal, computedItemTotal, hasMissingPrice } =
+    await applyServiceFeesToItems(scope, items);
 
   if (feeTotal !== 0) {
     addNumericDelta(order, "subtotal", feeTotal);
-    addNumericDelta(order, "total", feeTotal);
     addNumericDelta(order, "item_total", feeTotal);
     addNumericDelta(order, "item_subtotal", feeTotal);
     addNumericDelta(order, "original_total", feeTotal);
     addNumericDelta(order, "original_item_total", feeTotal);
     addNumericDelta(order, "original_item_subtotal", feeTotal);
+    if (hasMissingPrice) {
+      addNumericDelta(order, "total", feeTotal);
+    }
+  }
+
+  if (!hasMissingPrice) {
+    order.total = computedItemTotal;
   }
 };
 
