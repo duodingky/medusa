@@ -6,7 +6,7 @@ import {
   MedusaError,
   Modules,
 } from "@medusajs/framework/utils";
-import { refetchCart } from "../../helpers";
+import { refetchCart, refetchOrder } from "../../helpers";
 import { defaultStoreCartFields } from "@medusajs/medusa/api/store/carts/query-config";
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -23,8 +23,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       "Cart is already being completed by another request"
     );
   }
-
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY);
 
   if (errors?.[0]) {
     const error = errors[0].error;
@@ -60,14 +58,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return;
   }
 
-  const { data } = await query.graph({
-    entity: "order",
-    fields: req.queryConfig.fields,
-    filters: { id: result.id },
-  });
+  const order = await refetchOrder(
+    result.id,
+    req.scope,
+    req.queryConfig.fields
+  );
 
   res.status(200).json({
     type: "order",
-    order: data[0],
+    order,
   });
 }

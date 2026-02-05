@@ -16,6 +16,7 @@ import {
 import { VENDOR_GROUP_MODULE } from "../modules/vendor-group";
 import VendorGroupModuleService from "../modules/vendor-group/service";
 import { VENDOR_MODULE } from "../modules/vendor";
+import { number } from "prop-types";
 
 type ProductSnapshot = {
   id: string;
@@ -55,6 +56,7 @@ type CartSnapshot = {
   total?: number | null;
   item_total?: number | null;
   item_subtotal?: number | null;
+  shipping_total?: number | null;
   original_total?: number | null;
   original_item_total?: number | null;
   original_item_subtotal?: number | null;
@@ -571,7 +573,7 @@ export const applyServiceFeesToCart = async (
     addNumericDelta(cart, "original_item_subtotal", feeTotal);
   }
 
-  const computedTotal = items.reduce((sum, item) => {
+  const computedSubtotal = items.reduce((sum, item) => {
     const finalPrice =
       typeof item.final_price === "number" ? item.final_price : null;
     if (finalPrice == null) {
@@ -584,6 +586,7 @@ export const applyServiceFeesToCart = async (
     return sum + finalPrice * quantity;
   }, 0);
 
-  cart.total = computedTotal;
+  cart.subtotal = computedSubtotal;
+  cart.total = computedSubtotal + Number(cart.shipping_total);
 };
 

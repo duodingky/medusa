@@ -31,3 +31,28 @@ export const refetchCart = async (
 
   return cart;
 };
+
+export const refetchOrder = async (
+  id: string,
+  scope: MedusaContainer,
+  fields: string[]
+) => {
+  const query = scope.resolve(ContainerRegistrationKeys.QUERY);
+  const { data } = await query.graph({
+    entity: "order",
+    fields,
+    filters: { id },
+  });
+
+  if (!data || data.length === 0) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_FOUND,
+      `Order with id '${id}' not found`
+    );
+  }
+
+  const order = data[0];
+  await applyServiceFeesToCart(scope, order);
+
+  return order;
+};
