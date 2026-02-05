@@ -203,6 +203,7 @@ const ServiceFeesPage = () => {
   const [formState, setFormState] = useState<ServiceFeeFormState>(
     defaultServiceFeeFormState
   );
+  const [isIndefinite, setIsIndefinite] = useState(false);
   const [lockedChargingLevel, setLockedChargingLevel] =
     useState<ChargingLevel | null>(null);
   const [itemEligibility, setItemEligibility] = useState<ItemEligibilityConfig>(
@@ -354,6 +355,7 @@ const ServiceFeesPage = () => {
     setEditingServiceFeeId(null);
     setLockedChargingLevel(null);
     setFormState(defaultServiceFeeFormState);
+    setIsIndefinite(false);
     resetEligibilityState();
     setIsModalOpen(true);
   };
@@ -365,6 +367,7 @@ const ServiceFeesPage = () => {
       ...defaultServiceFeeFormState,
       charging_level: "global",
     });
+    setIsIndefinite(false);
     resetEligibilityState();
     setIsModalOpen(true);
   };
@@ -375,6 +378,10 @@ const ServiceFeesPage = () => {
   ) => {
     setEditingServiceFeeId(serviceFee.id);
     setLockedChargingLevel(lockLevel);
+    const validFrom = formatDateInput(serviceFee.valid_from);
+    const validTo = formatDateInput(serviceFee.valid_to);
+    const shouldSaveIndefinitely =
+      serviceFee.status === "active" && !validFrom && !validTo;
     setFormState({
       display_name: serviceFee.display_name ?? "",
       fee_name: serviceFee.fee_name ?? "",
@@ -383,10 +390,11 @@ const ServiceFeesPage = () => {
         serviceFee.rate === null || serviceFee.rate === undefined
           ? ""
           : String(serviceFee.rate),
-      valid_from: formatDateInput(serviceFee.valid_from),
-      valid_to: formatDateInput(serviceFee.valid_to),
+      valid_from: validFrom,
+      valid_to: validTo,
       status: serviceFee.status ?? "pending",
     });
+    setIsIndefinite(shouldSaveIndefinitely);
     const eligibilityConfig = serviceFee.eligibility_config;
     if (
       serviceFee.charging_level === "item_level" &&
@@ -442,6 +450,7 @@ const ServiceFeesPage = () => {
     setEditingServiceFeeId(null);
     setLockedChargingLevel(null);
     setFormState(defaultServiceFeeFormState);
+    setIsIndefinite(false);
     resetEligibilityState();
   };
 
@@ -452,6 +461,7 @@ const ServiceFeesPage = () => {
 
     try {
       const chargingLevel = lockedChargingLevel ?? formState.charging_level;
+      const shouldSaveIndefinitely = isIndefinite;
       const eligibilityConfig =
         chargingLevel === "item_level"
           ? itemEligibility
@@ -469,9 +479,13 @@ const ServiceFeesPage = () => {
         fee_name: formState.fee_name.trim(),
         charging_level: chargingLevel,
         rate: Number(formState.rate),
-        valid_from: formState.valid_from || undefined,
-        valid_to: formState.valid_to || undefined,
-        status: formState.status,
+        valid_from: shouldSaveIndefinitely
+          ? undefined
+          : formState.valid_from || undefined,
+        valid_to: shouldSaveIndefinitely
+          ? undefined
+          : formState.valid_to || undefined,
+        status: shouldSaveIndefinitely ? "active" : formState.status,
         eligibility_config: eligibilityConfig,
       };
 
@@ -857,7 +871,8 @@ const ServiceFeesPage = () => {
                   <select
                     className="rounded-md border border-ui-border-base px-3 py-2"
                     required
-                    value={formState.status}
+                    value={isIndefinite ? "active" : formState.status}
+                    disabled={isIndefinite}
                     onChange={(event) =>
                       setFormState((prev) => ({
                         ...prev,
@@ -871,36 +886,6 @@ const ServiceFeesPage = () => {
                       </option>
                     ))}
                   </select>
-                </label>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1">
-                  <span className="text-ui-fg-subtle">Valid from</span>
-                  <input
-                    className="rounded-md border border-ui-border-base px-3 py-2"
-                    type="date"
-                    value={formState.valid_from}
-                    onChange={(event) =>
-                      setFormState((prev) => ({
-                        ...prev,
-                        valid_from: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-ui-fg-subtle">Valid to</span>
-                  <input
-                    className="rounded-md border border-ui-border-base px-3 py-2"
-                    type="date"
-                    value={formState.valid_to}
-                    onChange={(event) =>
-                      setFormState((prev) => ({
-                        ...prev,
-                        valid_to: event.target.value,
-                      }))
-                    }
-                  />
                 </label>
               </div>
               {currentChargingLevel === "item_level" && (
@@ -1083,6 +1068,60 @@ const ServiceFeesPage = () => {
                   </div>
                 </div>
               )}
+              <div className="rounded-md border border-ui-border-base p-4">
+                <Heading level="h3">Period</Heading>
+                <label className="mt-3 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isIndefinite}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setIsIndefinite(checked);
+                      if (checked) {
+                        setFormState((prev) => ({
+                          ...prev,
+                          valid_from: "",
+                          valid_to: "",
+                          status: "active",
+                        }));
+                      }
+                    }}
+                  />
+                  <span>Save it indefinitely</span>
+                </label>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-ui-fg-subtle">Valid from</span>
+                    <input
+                      className="rounded-md border border-ui-border-base px-3 py-2"
+                      type="date"
+                      value={formState.valid_from}
+                      disabled={isIndefinite}
+                      onChange={(event) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          valid_from: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-ui-fg-subtle">Valid to</span>
+                    <input
+                      className="rounded-md border border-ui-border-base px-3 py-2"
+                      type="date"
+                      value={formState.valid_to}
+                      disabled={isIndefinite}
+                      onChange={(event) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          valid_to: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
               {error && <p className="text-ui-fg-error">{error}</p>}
               <div className="flex flex-wrap gap-2">
                 <button
