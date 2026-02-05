@@ -231,7 +231,7 @@ const matchesItemEligibility = (
   collectionId: string | null
 ) => {
   if (!eligibility || !("include" in eligibility)) {
-    return false;
+    return true;
   }
 
   const includeCategories = normalizeIdList(eligibility.include?.categories);
@@ -258,8 +258,8 @@ const matchesShopEligibility = (
   vendorId: string | null,
   vendorGroupIds: string[]
 ) => {
-  if (!eligibility || !("vendors" in eligibility) || !vendorId) {
-    return false;
+  if (!eligibility || !("vendors" in eligibility)) {
+    return true;
   }
 
   if (eligibility.vendors === "all") {
@@ -268,6 +268,14 @@ const matchesShopEligibility = (
 
   const vendorList = normalizeIdList(eligibility.vendors);
   const vendorGroups = normalizeIdList(eligibility.vendor_group);
+
+  if (vendorList.length === 0 && vendorGroups.length === 0) {
+    return true;
+  }
+
+  if (!vendorId) {
+    return false;
+  }
 
   const matchesVendor = vendorList.includes(vendorId);
   const matchesVendorGroup = vendorGroups.some((groupId) =>
