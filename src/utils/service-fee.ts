@@ -384,9 +384,9 @@ const addNumericDelta = (
   field: string,
   delta: number
 ) => {
-  const current = target[field];
-  if (typeof current === "number") {
-    target[field] = current + delta;
+  const numeric = toNumber(target[field]);
+  if (numeric != null) {
+    target[field] = numeric + delta;
   }
 };
 
@@ -623,12 +623,37 @@ const applyServiceFeesToItems = async (
     feeTotal += itemFeeTotal;
     computedItemTotal += item.final_price * quantity;
 
+    const lineSubtotal = item.final_price * quantity;
+
     addNumericDelta(item, "subtotal", itemFeeTotal);
+    if (toNumber(item.subtotal) == null) {
+      item.subtotal = lineSubtotal;
+    }
+
     addNumericDelta(item, "total", itemFeeTotal);
+    if (toNumber(item.total) == null) {
+      item.total = lineSubtotal;
+    }
+
     addNumericDelta(item, "original_total", itemFeeTotal);
+    if (toNumber(item.original_total) == null) {
+      item.original_total = lineSubtotal;
+    }
+
     addNumericDelta(item, "original_subtotal", itemFeeTotal);
+    if (toNumber(item.original_subtotal) == null) {
+      item.original_subtotal = lineSubtotal;
+    }
+
     addNumericDelta(item, "original_item_total", itemFeeTotal);
+    if (toNumber(item.original_item_total) == null) {
+      item.original_item_total = lineSubtotal;
+    }
+
     addNumericDelta(item, "original_item_subtotal", itemFeeTotal);
+    if (toNumber(item.original_item_subtotal) == null) {
+      item.original_item_subtotal = lineSubtotal;
+    }
   });
 
   return { feeTotal, computedItemTotal, hasMissingPrice };
