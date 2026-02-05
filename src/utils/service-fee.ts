@@ -492,12 +492,15 @@ export const applyServiceFeesToProducts = async (
         return;
       }
 
-      const feeAmount = calculateFeeAmount(
-        calculatedPrice.calculated_amount,
-        rate
-      );
-      calculatedPrice.final_price =
-        Number(calculatedPrice.calculated_amount) + Number(feeAmount);
+      const baseAmount = Number(calculatedPrice.calculated_amount);
+      if (!Number.isFinite(baseAmount)) {
+        return;
+      }
+
+      const feeAmount = calculateFeeAmount(baseAmount, rate);
+      const adjustedAmount = baseAmount + feeAmount;
+      calculatedPrice.calculated_amount = adjustedAmount;
+      calculatedPrice.final_price = adjustedAmount;
     });
   });
 };
