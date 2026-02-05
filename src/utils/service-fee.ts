@@ -35,6 +35,10 @@ type ProductSnapshotWithVariants = ProductSnapshot & {
   variants?: ProductVariantSnapshot[] | null;
 };
 
+type ShippingMethodSnapshot = {
+  amount?: number | null;
+};
+
 type CartLineItemSnapshot = {
   product_id?: string | null;
   product?: ProductSnapshot | null;
@@ -59,6 +63,8 @@ type CartSnapshot = {
   original_total?: number | null;
   original_item_total?: number | null;
   original_item_subtotal?: number | null;
+  shipping_total?: number | null;
+  shipping_methods?: ShippingMethodSnapshot[] | null;
 };
 
 type OrderSnapshot = CartSnapshot;
@@ -339,6 +345,22 @@ const calculateFeeAmount = (base: number, rate: number) => {
   return (base * rate) / 100;
 };
 
+const resolveShippingTotal = (cart: {
+  shipping_total?: number | null;
+  shipping_methods?: ShippingMethodSnapshot[] | null;
+}) => {
+  if (typeof cart.shipping_total === "number") {
+    return cart.shipping_total;
+  }
+  const methods = cart.shipping_methods ?? [];
+  return methods.reduce((sum, method) => {
+    if (typeof method?.amount !== "number" || !Number.isFinite(method.amount)) {
+      return sum;
+    }
+    return sum + method.amount;
+  }, 0);
+};
+
 const addNumericDelta = (
   target: Record<string, unknown>,
   field: string,
@@ -616,8 +638,19 @@ export const applyServiceFeesToCart = async (
     addNumericDelta(cart, "original_item_subtotal", feeTotal);
   }
 
+  const baseSubtotal = !hasMissingPrice
+    ? computedItemTotal
+    : typeof cart.subtotal === "number"
+      ? cart.subtotal
+      : null;
+  const shippingTotal = resolveShippingTotal(cart);
+
   if (!hasMissingPrice) {
-    cart.total = computedItemTotal;
+    cart.subtotal = computedItemTotal;
+  }
+
+  if (typeof baseSubtotal === "number") {
+    cart.total = baseSubtotal + shippingTotal;
   }
 };
 
@@ -640,13 +673,21 @@ export const applyServiceFeesToOrder = async (
     addNumericDelta(order, "original_total", feeTotal);
     addNumericDelta(order, "original_item_total", feeTotal);
     addNumericDelta(order, "original_item_subtotal", feeTotal);
-    if (hasMissingPrice) {
-      addNumericDelta(order, "total", feeTotal);
-    }
   }
 
+  const baseSubtotal = !hasMissingPrice
+    ? computedItemTotal
+    : typeof order.subtotal === "number"
+      ? order.subtotal
+      : null;
+  const shippingTotal = resolveShippingTotal(order);
+
   if (!hasMissingPrice) {
-    order.total = computedItemTotal;
+    order.subtotal = computedItemTotal;
+  }
+
+  if (typeof baseSubtotal === "number") {
+    order.total = baseSubtotal + shippingTotal;
   }
 };
 

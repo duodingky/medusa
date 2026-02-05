@@ -12,10 +12,21 @@ export const refetchCart = async (
   fields: string[]
 ) => {
   const remoteQuery = scope.resolve(ContainerRegistrationKeys.REMOTE_QUERY);
+  const requiredFields = [
+    "items.unit_price",
+    "items.quantity",
+    "items.product_id",
+    "items.product.id",
+    "items.variant.product_id",
+    "items.variant.product.id",
+    "shipping_total",
+    "shipping_methods.amount",
+  ];
+  const cartFields = Array.from(new Set([...(fields ?? []), ...requiredFields]));
   const queryObject = remoteQueryObjectFromString({
     entryPoint: "cart",
     variables: { filters: { id } },
-    fields,
+    fields: cartFields,
   });
 
   const [cart] = await remoteQuery(queryObject);

@@ -65,6 +65,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     "items.unit_price",
     "items.quantity",
     "items.product_id",
+    "shipping_total",
+    "shipping_methods.amount",
   ];
   const orderFields = Array.from(
     new Set([...(req.queryConfig.fields ?? []), ...requiredOrderFields])

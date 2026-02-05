@@ -16,6 +16,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     "items.product.id",
     "items.variant.product_id",
     "items.variant.product.id",
+    "shipping_total",
+    "shipping_methods.amount",
   ];
   const orderFields = Array.from(
     new Set([...(req.queryConfig?.fields ?? []), ...requiredOrderFields])
