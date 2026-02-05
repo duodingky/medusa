@@ -489,6 +489,8 @@ export const applyServiceFeesToCart = async (
   const { itemFees, shopFees, globalFees } = await resolveServiceFees(scope);
   const needsItemLevel = itemFees.length > 0;
   const needsShopLevel = shopFees.length > 0;
+  const fallbackFee = pickBestFee(globalFees);
+  const fallbackRate = Number(fallbackFee?.rate ?? 0);
   const products = items
     .map((item) =>
       item.product
@@ -507,15 +509,16 @@ export const applyServiceFeesToCart = async (
 
   items.forEach((item) => {
     const productId = item.product_id ?? item.product?.id;
-    if (!productId || item.unit_price == null) {
+    if (item.unit_price == null) {
       return;
     }
 
-    const eligibility = eligibilityMap.get(productId);
+    const eligibility = productId ? eligibilityMap.get(productId) : undefined;
     const fee = eligibility
       ? resolveServiceFee(eligibility, itemFees, shopFees, globalFees)
-      : pickBestFee(globalFees);
-    const rate = Number(fee?.rate ?? 0);
+      : fallbackFee;
+    const rate =
+      fee && typeof fee.rate !== "undefined" ? Number(fee.rate) : fallbackRate;
     const feeAmount = calculateFeeAmount(item.unit_price, rate);
     item.final_price = item.unit_price + feeAmount;
   });
