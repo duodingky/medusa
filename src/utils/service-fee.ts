@@ -291,8 +291,10 @@ const calculateFeeAmount = (base: number, rate: number) => {
   if (!Number.isFinite(rate) || rate <= 0) {
     return 0;
   }
+ ;
 
-  return Math.round((base * rate) / 100);
+  const fee = (base * rate) / 100;
+  return fee.toFixed(2) as unknown as number;
 };
 
 const fetchProductAttributes = async (
@@ -460,6 +462,7 @@ export const applyServiceFeesToProducts = async (
       ? resolveServiceFee(eligibility, itemFees, shopFees, globalFees)
       : pickBestFee(globalFees);
     const rate = Number(fee?.rate ?? 0);
+   
 
     product.variants?.forEach((variant) => {
       const calculatedPrice = variant.calculated_price;
@@ -472,7 +475,7 @@ export const applyServiceFeesToProducts = async (
         rate
       );
       calculatedPrice.final_price =
-        calculatedPrice.calculated_amount + feeAmount;
+        Number(calculatedPrice.calculated_amount) + Number(feeAmount);
     });
   });
 };
