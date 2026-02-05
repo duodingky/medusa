@@ -41,10 +41,23 @@ type CartLineItemSnapshot = {
   unit_price?: number | null;
   quantity?: number | null;
   final_price?: number | null;
+  subtotal?: number | null;
+  total?: number | null;
+  original_total?: number | null;
+  original_subtotal?: number | null;
+  original_item_total?: number | null;
+  original_item_subtotal?: number | null;
 };
 
 type CartSnapshot = {
   items?: CartLineItemSnapshot[] | null;
+  subtotal?: number | null;
+  total?: number | null;
+  item_total?: number | null;
+  item_subtotal?: number | null;
+  original_total?: number | null;
+  original_item_total?: number | null;
+  original_item_subtotal?: number | null;
 };
 
 type ServiceFeeCandidate = ServiceFee & {
@@ -291,10 +304,19 @@ const calculateFeeAmount = (base: number, rate: number) => {
   if (!Number.isFinite(rate) || rate <= 0) {
     return 0;
   }
- ;
 
-  const fee = (base * rate) / 100;
-  return fee.toFixed(2) as unknown as number;
+  return (base * rate) / 100;
+};
+
+const addNumericDelta = (
+  target: Record<string, unknown>,
+  field: string,
+  delta: number
+) => {
+  const current = target[field];
+  if (typeof current === "number") {
+    target[field] = current + delta;
+  }
 };
 
 const fetchProductAttributes = async (
@@ -510,6 +532,8 @@ export const applyServiceFeesToCart = async (
     needsShopLevel
   );
 
+  let feeTotal = 0;
+
   items.forEach((item) => {
     const productId = item.product_id ?? item.product?.id;
     if (item.unit_price == null) {
@@ -523,7 +547,29 @@ export const applyServiceFeesToCart = async (
     const rate =
       fee && typeof fee.rate !== "undefined" ? Number(fee.rate) : fallbackRate;
     const feeAmount = calculateFeeAmount(item.unit_price, rate);
+    const quantity = item.quantity ?? 1;
+    const itemFeeTotal = feeAmount * quantity;
+
     item.final_price = item.unit_price + feeAmount;
+    item.unit_price = item.final_price;
+    feeTotal += itemFeeTotal;
+
+    addNumericDelta(item, "subtotal", itemFeeTotal);
+    addNumericDelta(item, "total", itemFeeTotal);
+    addNumericDelta(item, "original_total", itemFeeTotal);
+    addNumericDelta(item, "original_subtotal", itemFeeTotal);
+    addNumericDelta(item, "original_item_total", itemFeeTotal);
+    addNumericDelta(item, "original_item_subtotal", itemFeeTotal);
   });
+
+  if (feeTotal !== 0) {
+    addNumericDelta(cart, "subtotal", feeTotal);
+    addNumericDelta(cart, "total", feeTotal);
+    addNumericDelta(cart, "item_total", feeTotal);
+    addNumericDelta(cart, "item_subtotal", feeTotal);
+    addNumericDelta(cart, "original_total", feeTotal);
+    addNumericDelta(cart, "original_item_total", feeTotal);
+    addNumericDelta(cart, "original_item_subtotal", feeTotal);
+  }
 };
 
