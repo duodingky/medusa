@@ -124,23 +124,31 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     SERVICE_FEE_LOG_MODULE
   );
 
-  if (validatedBody.charging_level === ChargingLevel.GLOBAL) {
-    const existingServiceFees =
-      await serviceFeeModuleService.listServiceFees({});
-    const hasGlobalFee = existingServiceFees.some(
-      (serviceFee) => serviceFee.charging_level === ChargingLevel.GLOBAL
-    );
-
-    if (hasGlobalFee) {
-      return res.status(409).json({
-        message: "A global service fee already exists.",
-      });
-    }
-  }
-
   const now = new Date();
   const shouldForcePending =
     validatedBody.valid_from && validatedBody.valid_from > now;
+  const resolvedStatus = shouldForcePending
+    ? ServiceFeeStatus.PENDING
+    : validatedBody.status ?? ServiceFeeStatus.PENDING;
+
+  if (
+    validatedBody.charging_level === ChargingLevel.GLOBAL &&
+    resolvedStatus === ServiceFeeStatus.ACTIVE
+  ) {
+    const existingServiceFees =
+      await serviceFeeModuleService.listServiceFees({});
+    const hasActiveGlobalFee = existingServiceFees.some(
+      (serviceFee) =>
+        serviceFee.charging_level === ChargingLevel.GLOBAL &&
+        serviceFee.status === ServiceFeeStatus.ACTIVE
+    );
+
+    if (hasActiveGlobalFee) {
+      return res.status(409).json({
+        message: "Only one global service fee can be active at a time.",
+      });
+    }
+  }
   const eligibility_config = normalizeEligibilityConfig(
     validatedBody.charging_level,
     validatedBody.eligibility_config
@@ -149,9 +157,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const service_fee = await serviceFeeModuleService.createServiceFees({
     ...validatedBody,
     eligibility_config,
-    status: shouldForcePending
-      ? ServiceFeeStatus.PENDING
-      : validatedBody.status ?? ServiceFeeStatus.PENDING,
+    status: resolvedStatus,
     date_created: new Date(),
   });
 

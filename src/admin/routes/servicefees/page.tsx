@@ -589,7 +589,7 @@ const ServiceFeesPage = () => {
     }));
   };
 
-  const globalServiceFee = serviceFees.find(
+  const globalServiceFees = serviceFees.filter(
     (serviceFee) => serviceFee.charging_level === "global"
   );
   const nonGlobalServiceFees = serviceFees.filter(
@@ -659,49 +659,75 @@ const ServiceFeesPage = () => {
           <button
             className="rounded-md border border-ui-border-base px-3 py-1"
             type="button"
-            onClick={() =>
-              globalServiceFee
-                ? openEditModal(globalServiceFee, "global")
-                : openGlobalCreateModal()
-            }
+            onClick={openGlobalCreateModal}
             disabled={isSaving}
           >
-            {globalServiceFee ? "Edit global" : "Add global"}
+            Add global
           </button>
         </div>
         {isLoading ? (
           <p className="mt-3 text-ui-fg-subtle">Loading global charging...</p>
-        ) : globalServiceFee ? (
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-ui-fg-subtle">Display name</p>
-              <p>{globalServiceFee.display_name}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Fee name</p>
-              <p>{globalServiceFee.fee_name}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Rate (%)</p>
-              <p>{globalServiceFee.rate}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Status</p>
-              <p>{statusLabels[globalServiceFee.status]}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Valid from</p>
-              <p>{formatDateLabel(globalServiceFee.valid_from)}</p>
-            </div>
-            <div>
-              <p className="text-ui-fg-subtle">Valid to</p>
-              <p>{formatDateLabel(globalServiceFee.valid_to)}</p>
-            </div>
-          </div>
-        ) : (
+        ) : globalServiceFees.length === 0 ? (
           <p className="mt-3 text-ui-fg-subtle">
             No global charging set yet.
           </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-ui-border-base text-left text-ui-fg-subtle">
+                  <th className="py-2 pr-4">Display name</th>
+                  <th className="py-2 pr-4">Fee name</th>
+                  <th className="py-2 pr-4">Rate (%)</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">Valid from</th>
+                  <th className="py-2 pr-4">Valid to</th>
+                  <th className="py-2 pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {globalServiceFees.map((serviceFee) => (
+                  <tr
+                    key={serviceFee.id}
+                    className="border-b border-ui-border-base"
+                  >
+                    <td className="py-3 pr-4">{serviceFee.display_name}</td>
+                    <td className="py-3 pr-4">{serviceFee.fee_name}</td>
+                    <td className="py-3 pr-4">{serviceFee.rate}</td>
+                    <td className="py-3 pr-4">
+                      {statusLabels[serviceFee.status]}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {formatDateLabel(serviceFee.valid_from)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {formatDateLabel(serviceFee.valid_to)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          className="rounded-md border border-ui-border-base px-3 py-1"
+                          type="button"
+                          onClick={() => openEditModal(serviceFee, "global")}
+                          disabled={isSaving}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="rounded-md border border-ui-border-base px-3 py-1 text-ui-fg-error"
+                          type="button"
+                          onClick={() => handleDelete(serviceFee.id)}
+                          disabled={isSaving}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       <div className="px-6 py-4">

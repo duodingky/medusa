@@ -164,6 +164,31 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     effectiveValidFrom !== null &&
     typeof effectiveValidFrom !== "undefined" &&
     effectiveValidFrom > new Date();
+  const resolvedStatus = shouldForcePending
+    ? ServiceFeeStatus.PENDING
+    : typeof validatedBody.status !== "undefined"
+      ? validatedBody.status
+      : existingServiceFee.status;
+
+  if (
+    targetChargingLevel === ChargingLevel.GLOBAL &&
+    resolvedStatus === ServiceFeeStatus.ACTIVE
+  ) {
+    const existingServiceFees =
+      await serviceFeeModuleService.listServiceFees({});
+    const hasOtherActiveGlobalFee = existingServiceFees.some(
+      (serviceFee) =>
+        serviceFee.charging_level === ChargingLevel.GLOBAL &&
+        serviceFee.status === ServiceFeeStatus.ACTIVE &&
+        serviceFee.id !== req.params.id
+    );
+
+    if (hasOtherActiveGlobalFee) {
+      return res.status(409).json({
+        message: "Only one global service fee can be active at a time.",
+      });
+    }
+  }
 
   const service_fee = await serviceFeeModuleService.updateServiceFees({
     id: req.params.id,
