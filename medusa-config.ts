@@ -35,6 +35,6 @@ export default defineConfig({
     { resolve: "./modules/vendor-group" },
     { resolve: "./modules/service-fee" },
     { resolve: "./modules/service-fee-log" },
-    { resolve: "./modules/sf-order" }
+    { resolve: "./modules/order-with-sf" }
   ]
 })
