@@ -4,7 +4,7 @@ import {
 } from "@medusajs/framework/utils";
 import { StepResponse, createStep } from "@medusajs/framework/workflows-sdk";
 import { Delivery } from "../../../modules/delivery/types";
-import { handleDeliveryWorkflowId } from "../../delivery/workflows/handle-delivery";
+import { handleDeliveryWorkflowId } from "../workflows/handle-delivery";
 
 type SetStepFailedtepInput = {
   stepId: string;

@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import type { ProductVariantDTO } from "@medusajs/types";
-import { computeServiceFee } from "./compute-service-fee";
+import { computeServiceFee } from "./utils/compute-service-fee";
 
 /**
  * Interface for a product response from the Store API
