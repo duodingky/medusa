@@ -8,6 +8,7 @@ import {
 } from "@medusajs/framework/utils";
 import { refetchCart, refetchOrder } from "../../helpers";
 import { defaultStoreCartFields } from "@medusajs/medusa/api/store/carts/query-config";
+import { saveOrderWithServiceFee } from "../../../../../utils/save-order-with-sf";
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const cart_id = req.params.id;
@@ -63,6 +64,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     req.scope,
     req.queryConfig.fields
   );
+
+  // Save order with service fee to database
+  await saveOrderWithServiceFee(order, req.scope);
 
   res.status(200).json({
     type: "order",
